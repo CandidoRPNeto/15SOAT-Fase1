@@ -17,6 +17,9 @@ return new class extends Migration
             $table->string('email')->unique();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
+            $table->enum('role', ['receptionist', 'mechanic', 'client'])->default('client');
+            $table->string('cpf_cnpj', 18)->nullable()->unique();
+            $table->string('phone', 20)->nullable();
             $table->rememberToken();
             $table->timestamps();
         });

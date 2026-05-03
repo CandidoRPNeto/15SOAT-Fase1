@@ -7,7 +7,9 @@
     "license": "MIT",
     "require": {
         "php": "^8.3",
+        "darkaonline/l5-swagger": "^11.0",
         "laravel/framework": "^13.0",
+        "laravel/sanctum": "^4.3",
         "laravel/tinker": "^3.0"
     },
     "require-dev": {
@@ -46,6 +48,10 @@
         "test": [
             "@php artisan config:clear --ansi",
             "@php artisan test"
+        ],
+        "test:coverage": [
+            "@php artisan config:clear --ansi",
+            "@php artisan test --coverage --coverage-clover=coverage.xml --log-junit=test-results.xml"
         ],
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",

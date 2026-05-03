@@ -1,0 +1,1517 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+        "title": "Workshop OS API",
+        "description": "API para gerenciamento de ordens de serviço de oficina mecânica. Perfis: receptionist, mechanic, client.",
+        "contact": {
+            "email": "dev@workshop.com"
+        },
+        "version": "1.0.0"
+    },
+    "servers": [
+        {
+            "url": "http://localhost:8000",
+            "description": "Servidor local"
+        }
+    ],
+    "paths": {
+        "/api/v1/auth/login": {
+            "post": {
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Login e geração de token",
+                "operationId": "a7997e7c1e3bfed64d4e56de82415931",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "email",
+                                    "password"
+                                ],
+                                "properties": {
+                                    "email": {
+                                        "type": "string",
+                                        "format": "email",
+                                        "example": "recepcao@workshop.com"
+                                    },
+                                    "password": {
+                                        "type": "string",
+                                        "example": "password"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Token gerado com sucesso"
+                    },
+                    "401": {
+                        "description": "Credenciais inválidas"
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/logout": {
+            "post": {
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Logout — revoga o token atual",
+                "operationId": "f6b8957b4c0b25636613a9f0512a8ba9",
+                "responses": {
+                    "200": {
+                        "description": "Logout realizado com sucesso"
+                    },
+                    "401": {
+                        "description": "Não autenticado"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/auth/me": {
+            "get": {
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Retorna o usuário autenticado",
+                "operationId": "37d33f0281f67d31d05b4c45eea0143b",
+                "responses": {
+                    "200": {
+                        "description": "Dados do usuário autenticado"
+                    },
+                    "401": {
+                        "description": "Não autenticado"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/clients": {
+            "get": {
+                "tags": [
+                    "Clients"
+                ],
+                "summary": "Lista todos os clientes",
+                "operationId": "3dc702c49ee2caa5dd56328483587398",
+                "parameters": [
+                    {
+                        "name": "cpf_cnpj",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "name",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Lista de clientes"
+                    },
+                    "403": {
+                        "description": "Acesso não autorizado"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Clients"
+                ],
+                "summary": "Cadastra novo cliente",
+                "operationId": "fa5db0d5e257989e36bfe9cc2de663c2",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "name",
+                                    "email",
+                                    "password",
+                                    "cpf_cnpj"
+                                ],
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "example": "Maria Silva"
+                                    },
+                                    "email": {
+                                        "type": "string",
+                                        "format": "email",
+                                        "example": "maria@email.com"
+                                    },
+                                    "password": {
+                                        "type": "string",
+                                        "example": "secret123"
+                                    },
+                                    "cpf_cnpj": {
+                                        "type": "string",
+                                        "example": "123.456.789-00"
+                                    },
+                                    "phone": {
+                                        "type": "string",
+                                        "example": "(11) 98888-1111"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Cliente criado"
+                    },
+                    "422": {
+                        "description": "Dados inválidos"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/clients/{id}": {
+            "get": {
+                "tags": [
+                    "Clients"
+                ],
+                "summary": "Exibe um cliente",
+                "operationId": "2bf7eab4fa46488323468a3bc0de3908",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Dados do cliente"
+                    },
+                    "404": {
+                        "description": "Cliente não encontrado"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Clients"
+                ],
+                "summary": "Atualiza um cliente",
+                "operationId": "39adf22f0f031ed10ae8498e15f1f3fc",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "name": {
+                                        "type": "string"
+                                    },
+                                    "email": {
+                                        "type": "string",
+                                        "format": "email"
+                                    },
+                                    "phone": {
+                                        "type": "string"
+                                    },
+                                    "cpf_cnpj": {
+                                        "type": "string"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Cliente atualizado"
+                    },
+                    "404": {
+                        "description": "Cliente não encontrado"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Clients"
+                ],
+                "summary": "Remove um cliente",
+                "operationId": "b958c57e10640016caeffaf768b5fd05",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Cliente removido"
+                    },
+                    "404": {
+                        "description": "Cliente não encontrado"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/parts": {
+            "get": {
+                "tags": [
+                    "Parts"
+                ],
+                "summary": "Lista peças",
+                "operationId": "f19a0688d27324fb398104f0fc461d7b",
+                "parameters": [
+                    {
+                        "name": "active",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "name": "low_stock",
+                        "in": "query",
+                        "description": "Filtra estoque baixo (<=5)",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Lista de peças"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Parts"
+                ],
+                "summary": "Cadastra peça",
+                "operationId": "d48eb3679fae100136251b4d0aaa3f79",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "name",
+                                    "price"
+                                ],
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "example": "Filtro de óleo"
+                                    },
+                                    "description": {
+                                        "type": "string"
+                                    },
+                                    "part_number": {
+                                        "type": "string",
+                                        "example": "FO-001"
+                                    },
+                                    "price": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 35
+                                    },
+                                    "stock_quantity": {
+                                        "type": "integer",
+                                        "example": 50
+                                    },
+                                    "active": {
+                                        "type": "boolean",
+                                        "example": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Peça criada"
+                    },
+                    "422": {
+                        "description": "Dados inválidos"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/parts/{id}": {
+            "get": {
+                "tags": [
+                    "Parts"
+                ],
+                "summary": "Exibe peça",
+                "operationId": "1f29d8130c1a8781cd037611a161aaa3",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Dados da peça"
+                    },
+                    "404": {
+                        "description": "Não encontrada"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Parts"
+                ],
+                "summary": "Atualiza peça",
+                "operationId": "fa044eea40faba7f8c051a5893489c3d",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "name": {
+                                        "type": "string"
+                                    },
+                                    "price": {
+                                        "type": "number"
+                                    },
+                                    "stock_quantity": {
+                                        "type": "integer"
+                                    },
+                                    "active": {
+                                        "type": "boolean"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Peça atualizada"
+                    },
+                    "404": {
+                        "description": "Não encontrada"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Parts"
+                ],
+                "summary": "Remove peça",
+                "operationId": "b1435c6188201380f7e4ab3aa0e8f5bd",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Peça removida"
+                    },
+                    "404": {
+                        "description": "Não encontrada"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/services": {
+            "get": {
+                "tags": [
+                    "Services"
+                ],
+                "summary": "Lista serviços",
+                "operationId": "19339d2b804c5bbb3a7d51826c6a5e9c",
+                "parameters": [
+                    {
+                        "name": "active",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Lista de serviços"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Services"
+                ],
+                "summary": "Cadastra serviço",
+                "operationId": "b9fd7c793f65af72b2c4e91b4773220a",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "name",
+                                    "price"
+                                ],
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "example": "Troca de óleo"
+                                    },
+                                    "description": {
+                                        "type": "string"
+                                    },
+                                    "price": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 120
+                                    },
+                                    "avg_execution_minutes": {
+                                        "type": "integer",
+                                        "example": 60
+                                    },
+                                    "active": {
+                                        "type": "boolean",
+                                        "example": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Serviço criado"
+                    },
+                    "422": {
+                        "description": "Dados inválidos"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/services/{id}": {
+            "get": {
+                "tags": [
+                    "Services"
+                ],
+                "summary": "Exibe serviço",
+                "operationId": "5460efdf46e38dba4e94cc1c62ce15a5",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Dados do serviço"
+                    },
+                    "404": {
+                        "description": "Não encontrado"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Services"
+                ],
+                "summary": "Atualiza serviço",
+                "operationId": "ca0d914039198efb0d6a0a5242999a96",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "name": {
+                                        "type": "string"
+                                    },
+                                    "price": {
+                                        "type": "number"
+                                    },
+                                    "avg_execution_minutes": {
+                                        "type": "integer"
+                                    },
+                                    "active": {
+                                        "type": "boolean"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Serviço atualizado"
+                    },
+                    "404": {
+                        "description": "Não encontrado"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Services"
+                ],
+                "summary": "Remove serviço",
+                "operationId": "284f2fc04534a4a5d77b970203f4e892",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Serviço removido"
+                    },
+                    "404": {
+                        "description": "Não encontrado"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/service-orders": {
+            "get": {
+                "tags": [
+                    "ServiceOrders"
+                ],
+                "summary": "Lista ordens de serviço",
+                "operationId": "37002ce155bedc30b00018237d47d174",
+                "parameters": [
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "client_id",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Lista de OS"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "ServiceOrders"
+                ],
+                "summary": "Cria uma Ordem de Serviço",
+                "operationId": "7f17c440e6edc12a5fac1bdb151898a7",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "client_id",
+                                    "vehicle_id"
+                                ],
+                                "properties": {
+                                    "client_id": {
+                                        "type": "integer",
+                                        "example": 3
+                                    },
+                                    "vehicle_id": {
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "notes": {
+                                        "type": "string"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "OS criada"
+                    },
+                    "422": {
+                        "description": "Dados inválidos"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/service-orders/{id}": {
+            "get": {
+                "tags": [
+                    "ServiceOrders"
+                ],
+                "summary": "Exibe OS com serviços e peças",
+                "operationId": "333f09eaf953dc171b140ac638e192ff",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Dados completos da OS"
+                    },
+                    "404": {
+                        "description": "OS não encontrada"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/service-orders/{id}/services": {
+            "post": {
+                "tags": [
+                    "ServiceOrders"
+                ],
+                "summary": "Adiciona serviço à OS (mecânico)",
+                "operationId": "e528985859357de8c27c7686d5016e52",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "service_id"
+                                ],
+                                "properties": {
+                                    "service_id": {
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "quantity": {
+                                        "type": "integer",
+                                        "example": 1
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Serviço adicionado"
+                    },
+                    "422": {
+                        "description": "OS não permite alteração neste status"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/service-orders/{id}/parts": {
+            "post": {
+                "tags": [
+                    "ServiceOrders"
+                ],
+                "summary": "Adiciona peça à OS (mecânico)",
+                "operationId": "ea7e6b9cd76568f6eb40f33896b06bb4",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "part_id"
+                                ],
+                                "properties": {
+                                    "part_id": {
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "quantity": {
+                                        "type": "integer",
+                                        "example": 1
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Peça adicionada"
+                    },
+                    "422": {
+                        "description": "Estoque insuficiente ou status inválido"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/service-orders/{id}/generate-budget": {
+            "post": {
+                "tags": [
+                    "ServiceOrders"
+                ],
+                "summary": "Gera orçamento e avança para Aguardando aprovação (mecânico)",
+                "operationId": "c8772ba3ee3697bd329a27752159cf44",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Orçamento gerado e enviado ao cliente"
+                    },
+                    "422": {
+                        "description": "Status inválido para gerar orçamento"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/service-orders/{id}/approve": {
+            "post": {
+                "tags": [
+                    "ServiceOrders"
+                ],
+                "summary": "Cliente aprova o orçamento",
+                "operationId": "951eebb343092171d4a0a42a6d88a08a",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OS aprovada"
+                    },
+                    "422": {
+                        "description": "Status inválido para aprovação"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/service-orders/{id}/cancel": {
+            "post": {
+                "tags": [
+                    "ServiceOrders"
+                ],
+                "summary": "Cliente cancela o orçamento",
+                "operationId": "ac7390bd19a654c04c57bc734e6625f5",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OS cancelada"
+                    },
+                    "422": {
+                        "description": "Status inválido para cancelamento"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/service-orders/{id}/start-execution": {
+            "post": {
+                "tags": [
+                    "ServiceOrders"
+                ],
+                "summary": "Inicia a execução (mecânico)",
+                "operationId": "096a8718e486099dc230d6176cbf8829",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OS em execução"
+                    },
+                    "422": {
+                        "description": "Status inválido"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/service-orders/{id}/finalize": {
+            "post": {
+                "tags": [
+                    "ServiceOrders"
+                ],
+                "summary": "Finaliza execução (mecânico)",
+                "operationId": "74b538e472cc951f80d9e3831b6559c2",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OS finalizada — cliente notificado para retirar"
+                    },
+                    "422": {
+                        "description": "Status inválido"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/service-orders/{id}/pay": {
+            "post": {
+                "tags": [
+                    "ServiceOrders"
+                ],
+                "summary": "Cliente paga a OS",
+                "operationId": "7d98a7d92cd2cdd704e2f0a17f21bb86",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Pagamento processado"
+                    },
+                    "422": {
+                        "description": "OS não está Finalizada ou já foi paga"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/service-orders/{id}/deliver": {
+            "post": {
+                "tags": [
+                    "ServiceOrders"
+                ],
+                "summary": "Recepcionista entrega o carro após pagamento",
+                "operationId": "5afac4861228ce039a903d18cbfe45bc",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Veículo entregue — OS encerrada"
+                    },
+                    "422": {
+                        "description": "OS não paga ou status inválido"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/service-orders/stats": {
+            "get": {
+                "tags": [
+                    "ServiceOrders"
+                ],
+                "summary": "Monitoramento: tempo médio de execução por serviço",
+                "operationId": "80a7c0d1b76e2bb95fb580e5c831c560",
+                "responses": {
+                    "200": {
+                        "description": "Estatísticas de execução"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/vehicles": {
+            "get": {
+                "tags": [
+                    "Vehicles"
+                ],
+                "summary": "Lista veículos",
+                "operationId": "73b535724aa9e0eb6ab36f9dea2af5d9",
+                "parameters": [
+                    {
+                        "name": "client_id",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "plate",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Lista de veículos"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Vehicles"
+                ],
+                "summary": "Cadastra veículo",
+                "operationId": "97d5b1544d8d0b1bbf78bacb7ff7c9d6",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "client_id",
+                                    "plate",
+                                    "brand",
+                                    "model",
+                                    "year"
+                                ],
+                                "properties": {
+                                    "client_id": {
+                                        "type": "integer",
+                                        "example": 3
+                                    },
+                                    "plate": {
+                                        "type": "string",
+                                        "example": "ABC-1234"
+                                    },
+                                    "brand": {
+                                        "type": "string",
+                                        "example": "Toyota"
+                                    },
+                                    "model": {
+                                        "type": "string",
+                                        "example": "Corolla"
+                                    },
+                                    "year": {
+                                        "type": "integer",
+                                        "example": 2022
+                                    },
+                                    "color": {
+                                        "type": "string",
+                                        "example": "Prata"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Veículo criado"
+                    },
+                    "422": {
+                        "description": "Dados inválidos"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/vehicles/{id}": {
+            "get": {
+                "tags": [
+                    "Vehicles"
+                ],
+                "summary": "Exibe veículo",
+                "operationId": "3f9cfe137c4a5c2f8d0cebf4df782777",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Dados do veículo"
+                    },
+                    "404": {
+                        "description": "Não encontrado"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Vehicles"
+                ],
+                "summary": "Atualiza veículo",
+                "operationId": "0897d5c6eef35da2391215989a66bd71",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "plate": {
+                                        "type": "string"
+                                    },
+                                    "brand": {
+                                        "type": "string"
+                                    },
+                                    "model": {
+                                        "type": "string"
+                                    },
+                                    "year": {
+                                        "type": "integer"
+                                    },
+                                    "color": {
+                                        "type": "string"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Veículo atualizado"
+                    },
+                    "404": {
+                        "description": "Não encontrado"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Vehicles"
+                ],
+                "summary": "Remove veículo",
+                "operationId": "8769e23b1fc248d1396ef30e6fde8093",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Veículo removido"
+                    },
+                    "404": {
+                        "description": "Não encontrado"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/webhook/messaging": {
+            "post": {
+                "tags": [
+                    "Webhook"
+                ],
+                "summary": "Webhook do sistema de mensageria — retorna OS abertas",
+                "description": "Chamado pelo sistema de mensageria externo. Retorna lista de OS com status aberto (não canceladas e não entregues), com status, orçamento, modelo e placa do veículo.",
+                "operationId": "dc4dbebd8da9b3ceddc2b7f5c175216c",
+                "responses": {
+                    "200": {
+                        "description": "Lista de OS abertas",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "open_orders": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "number": {
+                                                        "type": "string"
+                                                    },
+                                                    "status": {
+                                                        "type": "string"
+                                                    },
+                                                    "status_label": {
+                                                        "type": "string"
+                                                    },
+                                                    "total_amount": {
+                                                        "type": "number"
+                                                    },
+                                                    "vehicle_model": {
+                                                        "type": "string"
+                                                    },
+                                                    "vehicle_plate": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        },
+                                        "total": {
+                                            "type": "integer"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "components": {
+        "securitySchemes": {
+            "sanctum": {
+                "type": "http",
+                "scheme": "bearer",
+                "bearerFormat": "Token",
+                "description": "Informe o token Sanctum: Bearer {token}"
+            }
+        }
+    },
+    "tags": [
+        {
+            "name": "Auth",
+            "description": "Autenticação via Sanctum"
+        },
+        {
+            "name": "Clients",
+            "description": "CRUD de clientes (perfis: receptionist, mechanic)"
+        },
+        {
+            "name": "Parts",
+            "description": "CRUD de peças e insumos com controle de estoque"
+        },
+        {
+            "name": "Services",
+            "description": "CRUD de serviços"
+        },
+        {
+            "name": "ServiceOrders",
+            "description": "Ciclo de vida das Ordens de Serviço"
+        },
+        {
+            "name": "Vehicles",
+            "description": "CRUD de veículos"
+        },
+        {
+            "name": "Webhook",
+            "description": "Webhook para sistema de mensageria externo"
+        }
+    ]
+}

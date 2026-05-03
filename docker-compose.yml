@@ -1,0 +1,78 @@
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      APP_ENV: local
+      APP_DEBUG: "true"
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: workshop_os
+      DB_USERNAME: postgres
+      DB_PASSWORD: password
+      QUEUE_CONNECTION: database
+      CACHE_STORE: database
+      L5_SWAGGER_GENERATE_ALWAYS: "false"
+      L5_SWAGGER_CONST_HOST: "http://localhost:8000"
+    networks:
+      - workshop
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: workshop_os
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - workshop
+
+  sonarqube:
+    profiles: [sonar]
+    image: sonarqube:10-community
+    ports:
+      - "9000:9000"
+    environment:
+      SONAR_ES_BOOTSTRAP_CHECKS_DISABLE: "true"
+    volumes:
+      - sonarqube_data:/opt/sonarqube/data
+      - sonarqube_logs:/opt/sonarqube/logs
+      - sonarqube_extensions:/opt/sonarqube/extensions
+    networks:
+      - workshop
+
+  sonarscanner:
+    profiles: [sonar]
+    image: sonarsource/sonar-scanner-cli:latest
+    depends_on:
+      - sonarqube
+    volumes:
+      - .:/usr/src
+    environment:
+      SONAR_HOST_URL: http://sonarqube:9000
+      SONAR_TOKEN: ${SONAR_TOKEN:-}
+    networks:
+      - workshop
+
+networks:
+  workshop:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  sonarqube_data:
+  sonarqube_logs:
+  sonarqube_extensions:

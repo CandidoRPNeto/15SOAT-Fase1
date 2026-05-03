@@ -1,58 +1,125 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# 15SOAT - Fase 1 - Tech Challenge 
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+API RESTfull para gestão de ordens de serviço(OS) de uma oficina mecânica.
 
-## About Laravel
+---
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Stack
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+| Camada       | Tecnologia                        |
+|--------------|-----------------------------------|
+| Linguagem    | PHP 8.3                           |
+| Framework    | Laravel 13                        |
+| Banco        | PostgreSQL 16 (produção/Docker)   |
+| Banco testes | SQLite `:memory:`                 |
+| Auth         | Laravel Sanctum (API tokens)      |
+| Docs         | L5-Swagger / OpenAPI 3            |
+| Fila         | Database driver                   |
+| Container    | Docker + Docker Compose           |
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+---
 
-## Learning Laravel
+## Como rodar
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
-
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
-
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
-
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+> necessario ter o docker instalado na maquina.
 
 ```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+docker compose up --build -d
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+Isso é tudo. O container sobe o banco, roda as migrations, popula os dados de demonstração e inicia o servidor.
 
-## Contributing
+| Recurso    | URL                                       |
+|------------|-------------------------------------------|
+| API        | http://localhost:8000/api/v1/             |
+| Swagger UI | http://localhost:8000/api/documentation   |
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+---
 
-## Code of Conduct
+## Testar a API
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+Importe o arquivo Tech_Challenge.postman_collection.json em seu postman
 
-## Security Vulnerabilities
+---
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
 
-## License
+## Credenciais de demo
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+| Perfil        | E-mail                  | Senha      | Pode fazer                                                                 |
+|---------------|-------------------------|------------|----------------------------------------------------------------------------|
+| Recepcionista | recepcao@workshop.com   | password   | CRUD clientes/veículos, criar OS, entregar veículo após pagamento          |
+| Mecânico      | mecanico@workshop.com   | password   | CRUD serviços/peças, criar OS, diagnóstico, execução, orçamento            |
+| Cliente       | carlos@example.com      | password   | Consultar suas OSs, aprovar/cancelar orçamento, pagar OS                   |
+
+---
+
+## Fluxo de status da OS
+
+```
+received → in_diagnosis → awaiting_approval → approved → in_execution → finalized → delivered
+                                           └──────────→ cancelled
+```
+
+Notificações automáticas são disparadas na criação e nas transições de orçamento gerado, finalização e atraso na retirada (job horário).
+
+---
+
+## Endpoints principais
+
+Todos os endpoints (exceto login) requerem o header:
+
+```
+Authorization: Bearer {token}
+```
+
+| Método | Rota                                         | Descrição                        |
+|--------|----------------------------------------------|----------------------------------|
+| POST   | `/api/v1/auth/login`                         | Login — retorna token Sanctum    |
+| POST   | `/api/v1/auth/logout`                        | Logout                           |
+| GET    | `/api/v1/auth/me`                            | Dados do usuário autenticado     |
+| GET    | `/api/v1/clients`                            | Listar clientes                  |
+| POST   | `/api/v1/clients`                            | Cadastrar cliente                |
+| GET    | `/api/v1/vehicles`                           | Listar veículos                  |
+| GET    | `/api/v1/services`                           | Listar serviços do catálogo      |
+| GET    | `/api/v1/parts`                              | Listar peças em estoque          |
+| GET    | `/api/v1/service-orders`                     | Listar ordens de serviço         |
+| POST   | `/api/v1/service-orders`                     | Criar OS                         |
+| POST   | `/api/v1/service-orders/{id}/generate-budget`| Gerar orçamento                  |
+| POST   | `/api/v1/service-orders/{id}/approve`        | Cliente aprova orçamento         |
+| POST   | `/api/v1/service-orders/{id}/pay`            | Cliente paga OS                  |
+| POST   | `/api/v1/service-orders/{id}/deliver`        | Recepcionista entrega veículo    |
+| POST   | `/webhook/messaging`                         | Webhook externo (público)        |
+
+Documentação completa e interativa em **http://localhost:8000/api/documentation**.
+
+---
+
+## Arquitetura
+
+```
+app/
+├── Contracts/          # Interfaces: PaymentServiceInterface, MessagingServiceInterface
+├── Enums/              # UserRole, ServiceOrderStatus (com canTransitionTo)
+├── Http/
+│   ├── Controllers/Api/V1/   # AuthController, ClientController, VehicleController,
+│   │                         # ServiceController, PartController, ServiceOrderController
+│   ├── Middleware/     # EnsureRole — verifica UserRole no token Sanctum
+│   ├── Requests/       # StoreXxx / UpdateXxx
+│   └── Resources/      # Transformadores de resposta JSON
+├── Jobs/               # SendFineNotificationJob (dispara alerta de atraso)
+├── Models/             # User, Vehicle, Service, Part, ServiceOrder, ...
+├── Providers/          # AppServiceProvider (bind stubs às interfaces)
+└── Services/           # StubPaymentService, StubMessagingService
+```
+
+Integrações externas (pagamento e mensageria) são implementadas como **stubs** — contratos definidos via interface, prontos para substituição por implementações reais.
+
+---
+
+## Testes
+
+76 testes / 167 assertions — PHPUnit com SQLite `:memory:`.
+
+```bash
+composer run test
+```

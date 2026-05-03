@@ -1,0 +1,552 @@
+{
+  "info": {
+    "name": "Tech Challenge — Candido",
+    "description": "API REST para gestão de ordens de serviço de oficina mecânica.\n\n**Como usar:**\n1. Execute `POST /api/v1/auth/login` — o token é salvo automaticamente na variável `{{token}}`\n2. Todas as demais requisições já usam `{{token}}` no Authorization header\n\n**Credenciais de demo:**\n- Recepcionista: recepcao@workshop.com / password\n- Mecânico: mecanico@workshop.com / password\n- Cliente: carlos@example.com / password",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login — Recepcionista",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.token) {",
+                  "    pm.collectionVariables.set('token', json.token);",
+                  "    console.log('Token salvo:', json.token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Accept", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"recepcao@workshop.com\",\n    \"password\": \"password\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/v1/auth/login", "host": ["{{base_url}}"], "path": ["api", "v1", "auth", "login"] }
+          }
+        },
+        {
+          "name": "Login — Mecânico",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.token) { pm.collectionVariables.set('token', json.token); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Accept", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"mecanico@workshop.com\",\n    \"password\": \"password\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/v1/auth/login", "host": ["{{base_url}}"], "path": ["api", "v1", "auth", "login"] }
+          }
+        },
+        {
+          "name": "Login — Cliente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.token) { pm.collectionVariables.set('token', json.token); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Accept", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"carlos@example.com\",\n    \"password\": \"password\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/v1/auth/login", "host": ["{{base_url}}"], "path": ["api", "v1", "auth", "login"] }
+          }
+        },
+        {
+          "name": "Me — Usuário autenticado",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/v1/auth/me", "host": ["{{base_url}}"], "path": ["api", "v1", "auth", "me"] }
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/v1/auth/logout", "host": ["{{base_url}}"], "path": ["api", "v1", "auth", "logout"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Clients",
+      "item": [
+        {
+          "name": "Listar clientes",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/v1/clients",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "clients"],
+              "query": [
+                { "key": "name", "value": "", "disabled": true },
+                { "key": "cpf_cnpj", "value": "", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Buscar por nome",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/v1/clients?name=carlos",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "clients"],
+              "query": [{ "key": "name", "value": "carlos" }]
+            }
+          }
+        },
+        {
+          "name": "Cadastrar cliente",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }, { "key": "Accept", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Novo Cliente\",\n    \"email\": \"novo@example.com\",\n    \"password\": \"password\",\n    \"cpf_cnpj\": \"444.444.444-44\",\n    \"phone\": \"(11) 97777-0001\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/v1/clients", "host": ["{{base_url}}"], "path": ["api", "v1", "clients"] }
+          }
+        },
+        {
+          "name": "Exibir cliente",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/v1/clients/3", "host": ["{{base_url}}"], "path": ["api", "v1", "clients", "3"] }
+          }
+        },
+        {
+          "name": "Atualizar cliente",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }, { "key": "Accept", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"phone\": \"(11) 91111-9999\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/v1/clients/3", "host": ["{{base_url}}"], "path": ["api", "v1", "clients", "3"] }
+          }
+        },
+        {
+          "name": "Remover cliente",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/v1/clients/3", "host": ["{{base_url}}"], "path": ["api", "v1", "clients", "3"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Vehicles",
+      "item": [
+        {
+          "name": "Listar veículos",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/v1/vehicles",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "vehicles"],
+              "query": [
+                { "key": "client_id", "value": "", "disabled": true },
+                { "key": "plate", "value": "", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Filtrar por cliente",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/v1/vehicles?client_id=3",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "vehicles"],
+              "query": [{ "key": "client_id", "value": "3" }]
+            }
+          }
+        },
+        {
+          "name": "Cadastrar veículo",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }, { "key": "Accept", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"client_id\": 3,\n    \"plate\": \"XYZ-9999\",\n    \"brand\": \"Renault\",\n    \"model\": \"Sandero\",\n    \"year\": 2021,\n    \"color\": \"Branco\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/v1/vehicles", "host": ["{{base_url}}"], "path": ["api", "v1", "vehicles"] }
+          }
+        },
+        {
+          "name": "Exibir veículo",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/v1/vehicles/1", "host": ["{{base_url}}"], "path": ["api", "v1", "vehicles", "1"] }
+          }
+        },
+        {
+          "name": "Atualizar veículo",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }, { "key": "Accept", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"color\": \"Azul\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/v1/vehicles/1", "host": ["{{base_url}}"], "path": ["api", "v1", "vehicles", "1"] }
+          }
+        },
+        {
+          "name": "Remover veículo",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/v1/vehicles/1", "host": ["{{base_url}}"], "path": ["api", "v1", "vehicles", "1"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Services",
+      "item": [
+        {
+          "name": "Listar serviços",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/v1/services",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "services"],
+              "query": [{ "key": "active", "value": "true", "disabled": true }]
+            }
+          }
+        },
+        {
+          "name": "Cadastrar serviço",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }, { "key": "Accept", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Troca de amortecedor\",\n    \"description\": \"Troca de amortecedores dianteiros\",\n    \"price\": 320.00,\n    \"avg_execution_minutes\": 120,\n    \"active\": true\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/v1/services", "host": ["{{base_url}}"], "path": ["api", "v1", "services"] }
+          }
+        },
+        {
+          "name": "Exibir serviço",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/v1/services/1", "host": ["{{base_url}}"], "path": ["api", "v1", "services", "1"] }
+          }
+        },
+        {
+          "name": "Atualizar serviço",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }, { "key": "Accept", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"price\": 130.00\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/v1/services/1", "host": ["{{base_url}}"], "path": ["api", "v1", "services", "1"] }
+          }
+        },
+        {
+          "name": "Remover serviço",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/v1/services/1", "host": ["{{base_url}}"], "path": ["api", "v1", "services", "1"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Parts",
+      "item": [
+        {
+          "name": "Listar peças",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/v1/parts",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "parts"],
+              "query": [
+                { "key": "active", "value": "true", "disabled": true },
+                { "key": "low_stock", "value": "true", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Estoque baixo (≤ 5 unidades)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/v1/parts?low_stock=true",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "parts"],
+              "query": [{ "key": "low_stock", "value": "true" }]
+            }
+          }
+        },
+        {
+          "name": "Cadastrar peça",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }, { "key": "Accept", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Amortecedor dianteiro\",\n    \"description\": \"Amortecedor dianteiro esquerdo\",\n    \"part_number\": \"AD-001\",\n    \"price\": 280.00,\n    \"stock_quantity\": 6,\n    \"active\": true\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/v1/parts", "host": ["{{base_url}}"], "path": ["api", "v1", "parts"] }
+          }
+        },
+        {
+          "name": "Exibir peça",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/v1/parts/1", "host": ["{{base_url}}"], "path": ["api", "v1", "parts", "1"] }
+          }
+        },
+        {
+          "name": "Atualizar peça",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }, { "key": "Accept", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"stock_quantity\": 60,\n    \"price\": 37.00\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/v1/parts/1", "host": ["{{base_url}}"], "path": ["api", "v1", "parts", "1"] }
+          }
+        },
+        {
+          "name": "Remover peça",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/v1/parts/1", "host": ["{{base_url}}"], "path": ["api", "v1", "parts", "1"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Service Orders",
+      "item": [
+        {
+          "name": "Listar todas as OS",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/v1/service-orders",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "service-orders"],
+              "query": [
+                { "key": "status", "value": "", "disabled": true, "description": "received | in_diagnosis | awaiting_approval | approved | in_execution | finalized | delivered | cancelled" },
+                { "key": "client_id", "value": "", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Filtrar por status",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/v1/service-orders?status=awaiting_approval",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "service-orders"],
+              "query": [{ "key": "status", "value": "awaiting_approval" }]
+            }
+          }
+        },
+        {
+          "name": "Estatísticas de execução",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/v1/service-orders/stats", "host": ["{{base_url}}"], "path": ["api", "v1", "service-orders", "stats"] }
+          }
+        },
+        {
+          "name": "Criar OS",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }, { "key": "Accept", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"client_id\": 3,\n    \"vehicle_id\": 1,\n    \"notes\": \"Cliente relata barulho ao frear.\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/v1/service-orders", "host": ["{{base_url}}"], "path": ["api", "v1", "service-orders"] }
+          }
+        },
+        {
+          "name": "Exibir OS",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/v1/service-orders/1", "host": ["{{base_url}}"], "path": ["api", "v1", "service-orders", "1"] }
+          }
+        },
+        {
+          "name": "Adicionar serviço à OS",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }, { "key": "Accept", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"service_id\": 1,\n    \"quantity\": 1\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/v1/service-orders/1/services", "host": ["{{base_url}}"], "path": ["api", "v1", "service-orders", "1", "services"] }
+          }
+        },
+        {
+          "name": "Adicionar peça à OS",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }, { "key": "Accept", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"part_id\": 1,\n    \"quantity\": 1\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/v1/service-orders/1/parts", "host": ["{{base_url}}"], "path": ["api", "v1", "service-orders", "1", "parts"] }
+          }
+        },
+        {
+          "name": "Gerar orçamento",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/v1/service-orders/2/generate-budget", "host": ["{{base_url}}"], "path": ["api", "v1", "service-orders", "2", "generate-budget"] }
+          }
+        },
+        {
+          "name": "Aprovar orçamento (cliente)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/v1/service-orders/3/approve", "host": ["{{base_url}}"], "path": ["api", "v1", "service-orders", "3", "approve"] }
+          }
+        },
+        {
+          "name": "Cancelar orçamento (cliente)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/v1/service-orders/3/cancel", "host": ["{{base_url}}"], "path": ["api", "v1", "service-orders", "3", "cancel"] }
+          }
+        },
+        {
+          "name": "Iniciar execução (mecânico)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/v1/service-orders/4/start-execution", "host": ["{{base_url}}"], "path": ["api", "v1", "service-orders", "4", "start-execution"] }
+          }
+        },
+        {
+          "name": "Finalizar OS (mecânico)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/v1/service-orders/6/finalize", "host": ["{{base_url}}"], "path": ["api", "v1", "service-orders", "6", "finalize"] }
+          }
+        },
+        {
+          "name": "Pagar OS (cliente)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/v1/service-orders/7/pay", "host": ["{{base_url}}"], "path": ["api", "v1", "service-orders", "7", "pay"] }
+          }
+        },
+        {
+          "name": "Entregar veículo (recepcionista)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/v1/service-orders/7/deliver", "host": ["{{base_url}}"], "path": ["api", "v1", "service-orders", "7", "deliver"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Webhook",
+      "item": [
+        {
+          "name": "Webhook — OS abertas",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/webhook/messaging", "host": ["{{base_url}}"], "path": ["webhook", "messaging"] }
+          }
+        }
+      ]
+    }
+  ]
+}
