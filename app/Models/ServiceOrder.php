@@ -69,9 +69,9 @@ class ServiceOrder extends Model
         return $this->hasMany(ServiceOrderService::class);
     }
 
-    public function orderParts(): HasMany
+    public function orderItems(): HasMany
     {
-        return $this->hasMany(ServiceOrderPart::class);
+        return $this->hasMany(ServiceOrderItem::class);
     }
 
     public function services(): BelongsToMany
@@ -81,9 +81,9 @@ class ServiceOrder extends Model
             ->withTimestamps();
     }
 
-    public function parts(): BelongsToMany
+    public function items(): BelongsToMany
     {
-        return $this->belongsToMany(Part::class, 'service_order_parts')
+        return $this->belongsToMany(Item::class, 'service_order_items')
             ->withPivot(['quantity', 'unit_price'])
             ->withTimestamps();
     }
@@ -94,11 +94,11 @@ class ServiceOrder extends Model
             fn ($item) => $item->unit_price * $item->quantity
         );
 
-        $partsTotal = $this->orderParts->sum(
+        $itemsTotal = $this->orderItems->sum(
             fn ($item) => $item->unit_price * $item->quantity
         );
 
-        return round($servicesTotal + $partsTotal, 2);
+        return round($servicesTotal + $itemsTotal, 2);
     }
 
     public function isPaid(): bool

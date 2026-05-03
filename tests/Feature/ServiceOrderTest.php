@@ -5,9 +5,11 @@ namespace Tests\Feature;
 use App\Contracts\MessagingServiceInterface;
 use App\Contracts\PaymentServiceInterface;
 use App\Enums\ServiceOrderStatus;
-use App\Models\Part;
+use App\Models\Item;
 use App\Models\Service;
+use App\Models\ServiceItem;
 use App\Models\ServiceOrder;
+use App\Models\ServiceOrderItem;
 use App\Models\User;
 use App\Models\Vehicle;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -84,38 +86,146 @@ class ServiceOrderTest extends TestCase
         ]);
     }
 
-    public function test_mechanic_can_add_part_and_stock_decrements(): void
+    public function test_add_service_auto_creates_required_items(): void
     {
         $order = ServiceOrder::factory()->received()->create([
             'client_id' => $this->client->id,
             'vehicle_id' => $this->vehicle->id,
         ]);
-        $part = Part::factory()->create(['price' => 35.00, 'stock_quantity' => 10]);
+        $service = Service::factory()->create(['price' => 120.00]);
+        $item1 = Item::factory()->create(['price' => 35.00]);
+        $item2 = Item::factory()->create(['price' => 32.00]);
+
+        ServiceItem::create(['service_id' => $service->id, 'item_id' => $item1->id, 'quantity' => 1]);
+        ServiceItem::create(['service_id' => $service->id, 'item_id' => $item2->id, 'quantity' => 4]);
 
         $this->actingAs($this->mechanic)
-            ->postJson("/api/v1/service-orders/{$order->id}/parts", [
-                'part_id' => $part->id,
-                'quantity' => 3,
+            ->postJson("/api/v1/service-orders/{$order->id}/services", [
+                'service_id' => $service->id,
+                'quantity' => 1,
             ])
-            ->assertStatus(201);
+            ->assertStatus(201)
+            ->assertJsonStructure(['items']);
 
-        $this->assertDatabaseHas('parts', ['id' => $part->id, 'stock_quantity' => 7]);
+        $this->assertDatabaseHas('service_order_items', [
+            'service_order_id' => $order->id,
+            'item_id' => $item1->id,
+            'quantity' => 1,
+        ]);
+        $this->assertDatabaseHas('service_order_items', [
+            'service_order_id' => $order->id,
+            'item_id' => $item2->id,
+            'quantity' => 4,
+        ]);
     }
 
-    public function test_cannot_add_part_with_insufficient_stock(): void
+    public function test_add_service_merges_duplicate_items_from_multiple_services(): void
     {
         $order = ServiceOrder::factory()->received()->create([
             'client_id' => $this->client->id,
             'vehicle_id' => $this->vehicle->id,
         ]);
-        $part = Part::factory()->outOfStock()->create();
+        $item = Item::factory()->create(['price' => 32.00]);
+        $service1 = Service::factory()->create();
+        $service2 = Service::factory()->create();
+
+        ServiceItem::create(['service_id' => $service1->id, 'item_id' => $item->id, 'quantity' => 2]);
+        ServiceItem::create(['service_id' => $service2->id, 'item_id' => $item->id, 'quantity' => 3]);
 
         $this->actingAs($this->mechanic)
-            ->postJson("/api/v1/service-orders/{$order->id}/parts", [
-                'part_id' => $part->id,
+            ->postJson("/api/v1/service-orders/{$order->id}/services", ['service_id' => $service1->id])
+            ->assertStatus(201);
+
+        $this->actingAs($this->mechanic)
+            ->postJson("/api/v1/service-orders/{$order->id}/services", ['service_id' => $service2->id])
+            ->assertStatus(201);
+
+        $this->assertDatabaseHas('service_order_items', [
+            'service_order_id' => $order->id,
+            'item_id' => $item->id,
+            'quantity' => 5,
+        ]);
+    }
+
+    public function test_mechanic_can_add_item_manually(): void
+    {
+        $order = ServiceOrder::factory()->received()->create([
+            'client_id' => $this->client->id,
+            'vehicle_id' => $this->vehicle->id,
+        ]);
+        $item = Item::factory()->create(['price' => 35.00, 'stock_quantity' => 10]);
+
+        $this->actingAs($this->mechanic)
+            ->postJson("/api/v1/service-orders/{$order->id}/items", [
+                'item_id' => $item->id,
+                'quantity' => 3,
+            ])
+            ->assertStatus(201)
+            ->assertJsonStructure(['items']);
+
+        $this->assertDatabaseHas('service_order_items', [
+            'service_order_id' => $order->id,
+            'item_id' => $item->id,
+            'quantity' => 3,
+        ]);
+    }
+
+    public function test_mechanic_can_remove_item_from_order(): void
+    {
+        $order = ServiceOrder::factory()->received()->create([
+            'client_id' => $this->client->id,
+            'vehicle_id' => $this->vehicle->id,
+        ]);
+        $item = Item::factory()->create();
+        $orderItem = ServiceOrderItem::create([
+            'service_order_id' => $order->id,
+            'item_id' => $item->id,
+            'quantity' => 2,
+            'unit_price' => $item->price,
+        ]);
+
+        $this->actingAs($this->mechanic)
+            ->deleteJson("/api/v1/service-orders/{$order->id}/items/{$orderItem->id}")
+            ->assertOk();
+
+        $this->assertDatabaseMissing('service_order_items', ['id' => $orderItem->id]);
+    }
+
+    public function test_cannot_add_item_in_invalid_status(): void
+    {
+        $order = ServiceOrder::factory()->approved()->create([
+            'client_id' => $this->client->id,
+            'vehicle_id' => $this->vehicle->id,
+        ]);
+        $item = Item::factory()->create();
+
+        $this->actingAs($this->mechanic)
+            ->postJson("/api/v1/service-orders/{$order->id}/items", [
+                'item_id' => $item->id,
                 'quantity' => 1,
             ])
             ->assertUnprocessable();
+    }
+
+    public function test_items_response_includes_requested_and_total_quantity(): void
+    {
+        $order = ServiceOrder::factory()->received()->create([
+            'client_id' => $this->client->id,
+            'vehicle_id' => $this->vehicle->id,
+        ]);
+        $item = Item::factory()->create(['stock_quantity' => 50, 'price' => 35.00]);
+        ServiceOrderItem::create([
+            'service_order_id' => $order->id,
+            'item_id' => $item->id,
+            'quantity' => 4,
+            'unit_price' => $item->price,
+        ]);
+
+        $this->actingAs($this->mechanic)
+            ->getJson("/api/v1/service-orders/{$order->id}")
+            ->assertOk()
+            ->assertJsonPath('items.0.requested_quantity', 4)
+            ->assertJsonPath('items.0.total_quantity', 50);
     }
 
     public function test_full_flow_generate_budget_advances_status(): void
@@ -166,25 +276,17 @@ class ServiceOrderTest extends TestCase
             ->assertJsonPath('status', 'approved');
     }
 
-    public function test_client_can_cancel_order_and_stock_is_restored(): void
+    public function test_client_can_cancel_order(): void
     {
-        $part = Part::factory()->create(['stock_quantity' => 5]);
         $order = ServiceOrder::factory()->awaitingApproval()->create([
             'client_id' => $this->client->id,
             'vehicle_id' => $this->vehicle->id,
-        ]);
-        $order->orderParts()->create([
-            'part_id' => $part->id,
-            'quantity' => 2,
-            'unit_price' => $part->price,
         ]);
 
         $this->actingAs($this->client)
             ->postJson("/api/v1/service-orders/{$order->id}/cancel")
             ->assertOk()
             ->assertJsonPath('status', 'cancelled');
-
-        $this->assertDatabaseHas('parts', ['id' => $part->id, 'stock_quantity' => 7]);
     }
 
     public function test_other_client_cannot_approve_order(): void

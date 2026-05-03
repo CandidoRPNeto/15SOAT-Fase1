@@ -2,11 +2,12 @@
 
 namespace App\Models;
 
+use App\Enums\ItemType;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class Part extends Model
+class Item extends Model
 {
     use HasFactory;
 
@@ -17,11 +18,13 @@ class Part extends Model
         'price',
         'stock_quantity',
         'active',
+        'type',
     ];
 
     protected function casts(): array
     {
         return [
+            'type' => ItemType::class,
             'price' => 'decimal:2',
             'stock_quantity' => 'integer',
             'active' => 'boolean',
@@ -33,10 +36,8 @@ class Part extends Model
         return $this->stock_quantity >= $quantity;
     }
 
-    public function serviceOrders(): BelongsToMany
+    public function serviceOrderItems(): HasMany
     {
-        return $this->belongsToMany(ServiceOrder::class, 'service_order_parts')
-            ->withPivot(['quantity', 'unit_price'])
-            ->withTimestamps();
+        return $this->hasMany(ServiceOrderItem::class);
     }
 }

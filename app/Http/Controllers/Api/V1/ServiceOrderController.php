@@ -5,14 +5,14 @@ namespace App\Http\Controllers\Api\V1;
 use App\Contracts\MessagingServiceInterface;
 use App\Contracts\PaymentServiceInterface;
 use App\Enums\ServiceOrderStatus;
-use App\Http\Requests\AddPartToOrderRequest;
+use App\Http\Requests\AddItemToOrderRequest;
 use App\Http\Requests\AddServiceToOrderRequest;
 use App\Http\Requests\StoreServiceOrderRequest;
 use App\Http\Resources\ServiceOrderResource;
-use App\Models\Part;
+use App\Models\Item;
 use App\Models\Service;
 use App\Models\ServiceOrder;
-use App\Models\ServiceOrderPart;
+use App\Models\ServiceOrderItem;
 use App\Models\ServiceOrderService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -41,7 +41,7 @@ class ServiceOrderController extends Controller
     public function index(Request $request): AnonymousResourceCollection
     {
         $user = $request->user();
-        $query = ServiceOrder::with(['client', 'vehicle', 'services', 'parts']);
+        $query = ServiceOrder::with(['client', 'vehicle', 'services', 'orderItems.item']);
 
         if ($user->isClient()) {
             $query->where('client_id', $user->id);
@@ -94,7 +94,7 @@ class ServiceOrderController extends Controller
 
     #[OA\Get(
         path: '/api/v1/service-orders/{id}',
-        summary: 'Exibe OS com serviços e peças',
+        summary: 'Exibe OS com serviços e itens',
         security: [['sanctum' => []]],
         tags: ['ServiceOrders'],
         parameters: [
@@ -107,7 +107,7 @@ class ServiceOrderController extends Controller
     )]
     public function show(Request $request, int $id): JsonResponse
     {
-        $order = ServiceOrder::with(['client', 'vehicle', 'services', 'parts'])->findOrFail($id);
+        $order = ServiceOrder::with(['client', 'vehicle', 'services', 'orderItems.item'])->findOrFail($id);
 
         if ($request->user()->isClient() && $order->client_id !== $request->user()->id) {
             return response()->json(['message' => 'Acesso não autorizado.'], 403);
@@ -118,7 +118,7 @@ class ServiceOrderController extends Controller
 
     #[OA\Post(
         path: '/api/v1/service-orders/{id}/services',
-        summary: 'Adiciona serviço à OS (mecânico)',
+        summary: 'Adiciona serviço à OS e inclui automaticamente seus itens necessários (mecânico)',
         security: [['sanctum' => []]],
         tags: ['ServiceOrders'],
         parameters: [
@@ -135,7 +135,7 @@ class ServiceOrderController extends Controller
             )
         ),
         responses: [
-            new OA\Response(response: 201, description: 'Serviço adicionado'),
+            new OA\Response(response: 201, description: 'Serviço adicionado e itens criados automaticamente'),
             new OA\Response(response: 422, description: 'OS não permite alteração neste status'),
         ]
     )]
@@ -147,7 +147,7 @@ class ServiceOrderController extends Controller
             return response()->json(['message' => 'Serviços só podem ser adicionados nos status Recebida ou Em diagnóstico.'], 422);
         }
 
-        $service = Service::findOrFail($request->service_id);
+        $service = Service::with('serviceItems.item')->findOrFail($request->service_id);
         $quantity = $request->input('quantity', 1);
 
         ServiceOrderService::create([
@@ -157,15 +157,32 @@ class ServiceOrderController extends Controller
             'unit_price' => $service->price,
         ]);
 
+        foreach ($service->serviceItems as $serviceItem) {
+            $existing = ServiceOrderItem::where('service_order_id', $order->id)
+                ->where('item_id', $serviceItem->item_id)
+                ->first();
+
+            if ($existing) {
+                $existing->increment('quantity', $serviceItem->quantity);
+            } else {
+                ServiceOrderItem::create([
+                    'service_order_id' => $order->id,
+                    'item_id' => $serviceItem->item_id,
+                    'quantity' => $serviceItem->quantity,
+                    'unit_price' => $serviceItem->item->price,
+                ]);
+            }
+        }
+
         return response()->json(
-            new ServiceOrderResource($order->load(['client', 'vehicle', 'services', 'parts'])),
+            new ServiceOrderResource($order->load(['client', 'vehicle', 'services', 'orderItems.item'])),
             201
         );
     }
 
     #[OA\Post(
-        path: '/api/v1/service-orders/{id}/parts',
-        summary: 'Adiciona peça à OS (mecânico)',
+        path: '/api/v1/service-orders/{id}/items',
+        summary: 'Adiciona item manualmente à lista de itens da OS (mecânico)',
         security: [['sanctum' => []]],
         tags: ['ServiceOrders'],
         parameters: [
@@ -174,45 +191,81 @@ class ServiceOrderController extends Controller
         requestBody: new OA\RequestBody(
             required: true,
             content: new OA\JsonContent(
-                required: ['part_id'],
+                required: ['item_id'],
                 properties: [
-                    new OA\Property(property: 'part_id', type: 'integer', example: 1),
+                    new OA\Property(property: 'item_id', type: 'integer', example: 1),
                     new OA\Property(property: 'quantity', type: 'integer', example: 1),
                 ]
             )
         ),
         responses: [
-            new OA\Response(response: 201, description: 'Peça adicionada'),
-            new OA\Response(response: 422, description: 'Estoque insuficiente ou status inválido'),
+            new OA\Response(response: 201, description: 'Item adicionado'),
+            new OA\Response(response: 422, description: 'Status inválido'),
         ]
     )]
-    public function addPart(AddPartToOrderRequest $request, int $id): JsonResponse
+    public function addItem(AddItemToOrderRequest $request, int $id): JsonResponse
     {
         $order = ServiceOrder::findOrFail($id);
 
         if (! in_array($order->status, [ServiceOrderStatus::RECEIVED, ServiceOrderStatus::IN_DIAGNOSIS])) {
-            return response()->json(['message' => 'Peças só podem ser adicionadas nos status Recebida ou Em diagnóstico.'], 422);
+            return response()->json(['message' => 'Itens só podem ser adicionados nos status Recebida ou Em diagnóstico.'], 422);
         }
 
-        $part = Part::findOrFail($request->part_id);
+        $item = Item::findOrFail($request->item_id);
         $quantity = $request->input('quantity', 1);
 
-        if (! $part->hasStock($quantity)) {
-            return response()->json(['message' => "Estoque insuficiente. Disponível: {$part->stock_quantity}."], 422);
+        $existing = ServiceOrderItem::where('service_order_id', $order->id)
+            ->where('item_id', $item->id)
+            ->first();
+
+        if ($existing) {
+            $existing->increment('quantity', $quantity);
+        } else {
+            ServiceOrderItem::create([
+                'service_order_id' => $order->id,
+                'item_id' => $item->id,
+                'quantity' => $quantity,
+                'unit_price' => $item->price,
+            ]);
         }
 
-        ServiceOrderPart::create([
-            'service_order_id' => $order->id,
-            'part_id' => $part->id,
-            'quantity' => $quantity,
-            'unit_price' => $part->price,
-        ]);
+        return response()->json(
+            new ServiceOrderResource($order->load(['client', 'vehicle', 'services', 'orderItems.item'])),
+            201
+        );
+    }
 
-        $part->decrement('stock_quantity', $quantity);
+    #[OA\Delete(
+        path: '/api/v1/service-orders/{id}/items/{itemId}',
+        summary: 'Remove item da lista de itens da OS (mecânico)',
+        security: [['sanctum' => []]],
+        tags: ['ServiceOrders'],
+        parameters: [
+            new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+            new OA\Parameter(name: 'itemId', in: 'path', required: true, description: 'ID do registro service_order_items', schema: new OA\Schema(type: 'integer')),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Item removido da OS'),
+            new OA\Response(response: 404, description: 'Item não encontrado na OS'),
+            new OA\Response(response: 422, description: 'Status inválido'),
+        ]
+    )]
+    public function removeItem(int $id, int $itemId): JsonResponse
+    {
+        $order = ServiceOrder::findOrFail($id);
+
+        if (! in_array($order->status, [ServiceOrderStatus::RECEIVED, ServiceOrderStatus::IN_DIAGNOSIS])) {
+            return response()->json(['message' => 'Itens só podem ser removidos nos status Recebida ou Em diagnóstico.'], 422);
+        }
+
+        $orderItem = ServiceOrderItem::where('service_order_id', $order->id)
+            ->where('id', $itemId)
+            ->firstOrFail();
+
+        $orderItem->delete();
 
         return response()->json(
-            new ServiceOrderResource($order->load(['client', 'vehicle', 'services', 'parts'])),
-            201
+            new ServiceOrderResource($order->load(['client', 'vehicle', 'services', 'orderItems.item']))
         );
     }
 
@@ -231,7 +284,7 @@ class ServiceOrderController extends Controller
     )]
     public function generateBudget(int $id): JsonResponse
     {
-        $order = ServiceOrder::with(['client', 'vehicle', 'orderServices', 'orderParts'])->findOrFail($id);
+        $order = ServiceOrder::with(['client', 'vehicle', 'orderServices', 'orderItems'])->findOrFail($id);
 
         if ($order->status !== ServiceOrderStatus::IN_DIAGNOSIS) {
             return response()->json(['message' => 'A OS deve estar Em diagnóstico para gerar o orçamento.'], 422);
@@ -245,7 +298,7 @@ class ServiceOrderController extends Controller
             'budget_sent_at' => now(),
         ]);
 
-        $order->load(['client', 'vehicle', 'services', 'parts']);
+        $order->load(['client', 'vehicle', 'services', 'orderItems.item']);
         $this->messaging->notifyBudgetReady($order);
 
         return response()->json(new ServiceOrderResource($order));
@@ -278,7 +331,7 @@ class ServiceOrderController extends Controller
 
         $order->update(['status' => ServiceOrderStatus::APPROVED]);
 
-        return response()->json(new ServiceOrderResource($order->load(['services', 'parts'])));
+        return response()->json(new ServiceOrderResource($order->load(['services', 'orderItems.item'])));
     }
 
     #[OA\Post(
@@ -296,7 +349,7 @@ class ServiceOrderController extends Controller
     )]
     public function cancel(Request $request, int $id): JsonResponse
     {
-        $order = ServiceOrder::with(['client', 'vehicle', 'orderParts'])->findOrFail($id);
+        $order = ServiceOrder::with(['client', 'vehicle'])->findOrFail($id);
 
         if ($request->user()->isClient() && $order->client_id !== $request->user()->id) {
             return response()->json(['message' => 'Acesso não autorizado.'], 403);
@@ -306,13 +359,9 @@ class ServiceOrderController extends Controller
             return response()->json(['message' => 'A OS deve estar Aguardando aprovação para ser cancelada.'], 422);
         }
 
-        foreach ($order->orderParts as $orderPart) {
-            $orderPart->part->increment('stock_quantity', $orderPart->quantity);
-        }
-
         $order->update(['status' => ServiceOrderStatus::CANCELLED]);
 
-        return response()->json(new ServiceOrderResource($order->load(['services', 'parts'])));
+        return response()->json(new ServiceOrderResource($order->load(['services', 'orderItems.item'])));
     }
 
     #[OA\Post(
@@ -338,7 +387,7 @@ class ServiceOrderController extends Controller
 
         $order->update(['status' => ServiceOrderStatus::IN_EXECUTION]);
 
-        return response()->json(new ServiceOrderResource($order->load(['client', 'vehicle', 'services', 'parts'])));
+        return response()->json(new ServiceOrderResource($order->load(['client', 'vehicle', 'services', 'orderItems.item'])));
     }
 
     #[OA\Post(
@@ -369,7 +418,7 @@ class ServiceOrderController extends Controller
 
         $this->messaging->notifyPickupReady($order);
 
-        return response()->json(new ServiceOrderResource($order->load(['services', 'parts'])));
+        return response()->json(new ServiceOrderResource($order->load(['services', 'orderItems.item'])));
     }
 
     #[OA\Post(
@@ -412,7 +461,7 @@ class ServiceOrderController extends Controller
         return response()->json([
             'message' => $result['message'],
             'transaction_id' => $result['transaction_id'],
-            'order' => new ServiceOrderResource($order->load(['services', 'parts'])),
+            'order' => new ServiceOrderResource($order->load(['services', 'orderItems.item'])),
         ]);
     }
 
@@ -442,7 +491,7 @@ class ServiceOrderController extends Controller
             'delivered_at' => now(),
         ]);
 
-        return response()->json(new ServiceOrderResource($order->load(['services', 'parts'])));
+        return response()->json(new ServiceOrderResource($order->load(['services', 'orderItems.item'])));
     }
 
     #[OA\Get(

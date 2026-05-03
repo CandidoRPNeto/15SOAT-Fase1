@@ -19,6 +19,9 @@ class UpdateServiceRequest extends FormRequest
             'price' => ['sometimes', 'numeric', 'min:0'],
             'avg_execution_minutes' => ['sometimes', 'integer', 'min:1'],
             'active' => ['sometimes', 'boolean'],
+            'items' => ['sometimes', 'array'],
+            'items.*.item_id' => ['required_with:items', 'integer', 'exists:items,id'],
+            'items.*.quantity' => ['sometimes', 'integer', 'min:1'],
         ];
     }
 }

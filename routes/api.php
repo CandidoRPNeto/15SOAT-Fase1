@@ -2,7 +2,7 @@
 
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\ClientController;
-use App\Http\Controllers\Api\V1\PartController;
+use App\Http\Controllers\Api\V1\ItemController;
 use App\Http\Controllers\Api\V1\ServiceController;
 use App\Http\Controllers\Api\V1\ServiceOrderController;
 use App\Http\Controllers\Api\V1\VehicleController;
@@ -36,9 +36,9 @@ Route::prefix('v1')->group(function () {
             Route::apiResource('services', ServiceController::class);
         });
 
-        // Peças — receptionist e mechanic
+        // Itens (insumos e peças) — receptionist e mechanic
         Route::middleware('role:receptionist,mechanic')->group(function () {
-            Route::apiResource('parts', PartController::class);
+            Route::apiResource('items', ItemController::class);
         });
 
         // Ordens de Serviço
@@ -51,10 +51,11 @@ Route::prefix('v1')->group(function () {
             Route::middleware('role:receptionist,mechanic')
                 ->post('/', [ServiceOrderController::class, 'store']);
 
-            // Adicionar serviço/peça e gerar orçamento — mechanic
+            // Adicionar serviço/item e gerar orçamento — mechanic
             Route::middleware('role:mechanic')->group(function () {
                 Route::post('/{id}/services', [ServiceOrderController::class, 'addService']);
-                Route::post('/{id}/parts', [ServiceOrderController::class, 'addPart']);
+                Route::post('/{id}/items', [ServiceOrderController::class, 'addItem']);
+                Route::delete('/{id}/items/{itemId}', [ServiceOrderController::class, 'removeItem']);
                 Route::post('/{id}/generate-budget', [ServiceOrderController::class, 'generateBudget']);
                 Route::post('/{id}/start-execution', [ServiceOrderController::class, 'startExecution']);
                 Route::post('/{id}/finalize', [ServiceOrderController::class, 'finalize']);

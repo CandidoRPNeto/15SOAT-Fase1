@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Service extends Model
 {
@@ -31,6 +32,18 @@ class Service extends Model
     {
         return $this->belongsToMany(ServiceOrder::class, 'service_order_services')
             ->withPivot(['quantity', 'unit_price'])
+            ->withTimestamps();
+    }
+
+    public function serviceItems(): HasMany
+    {
+        return $this->hasMany(ServiceItem::class);
+    }
+
+    public function items(): BelongsToMany
+    {
+        return $this->belongsToMany(Item::class, 'service_items')
+            ->withPivot(['quantity'])
             ->withTimestamps();
     }
 }

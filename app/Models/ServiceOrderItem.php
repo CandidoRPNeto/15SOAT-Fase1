@@ -5,11 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class ServiceOrderPart extends Model
+class ServiceOrderItem extends Model
 {
     protected $fillable = [
         'service_order_id',
-        'part_id',
+        'item_id',
         'quantity',
         'unit_price',
     ];
@@ -27,9 +27,9 @@ class ServiceOrderPart extends Model
         return $this->belongsTo(ServiceOrder::class);
     }
 
-    public function part(): BelongsTo
+    public function item(): BelongsTo
     {
-        return $this->belongsTo(Part::class);
+        return $this->belongsTo(Item::class);
     }
 
     public function subtotal(): float

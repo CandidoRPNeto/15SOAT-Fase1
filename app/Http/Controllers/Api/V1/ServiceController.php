@@ -6,6 +6,7 @@ use App\Http\Requests\StoreServiceRequest;
 use App\Http\Requests\UpdateServiceRequest;
 use App\Http\Resources\ServiceResource;
 use App\Models\Service;
+use App\Models\ServiceItem;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -26,7 +27,7 @@ class ServiceController extends Controller
     )]
     public function index(Request $request): AnonymousResourceCollection
     {
-        $query = Service::query();
+        $query = Service::with('items');
 
         if ($request->has('active')) {
             $query->where('active', filter_var($request->active, FILTER_VALIDATE_BOOLEAN));
@@ -50,6 +51,16 @@ class ServiceController extends Controller
                     new OA\Property(property: 'price', type: 'number', format: 'float', example: 120.00),
                     new OA\Property(property: 'avg_execution_minutes', type: 'integer', example: 60),
                     new OA\Property(property: 'active', type: 'boolean', example: true),
+                    new OA\Property(
+                        property: 'items',
+                        type: 'array',
+                        items: new OA\Items(
+                            properties: [
+                                new OA\Property(property: 'item_id', type: 'integer', example: 1),
+                                new OA\Property(property: 'quantity', type: 'integer', example: 1),
+                            ]
+                        )
+                    ),
                 ]
             )
         ),
@@ -60,9 +71,19 @@ class ServiceController extends Controller
     )]
     public function store(StoreServiceRequest $request): JsonResponse
     {
-        $service = Service::create($request->validated());
+        $service = Service::create($request->safe()->except('items'));
 
-        return response()->json(new ServiceResource($service), 201);
+        if ($request->has('items')) {
+            foreach ($request->items as $item) {
+                ServiceItem::create([
+                    'service_id' => $service->id,
+                    'item_id' => $item['item_id'],
+                    'quantity' => $item['quantity'] ?? 1,
+                ]);
+            }
+        }
+
+        return response()->json(new ServiceResource($service->load('items')), 201);
     }
 
     #[OA\Get(
@@ -80,7 +101,7 @@ class ServiceController extends Controller
     )]
     public function show(int $id): JsonResponse
     {
-        return response()->json(new ServiceResource(Service::findOrFail($id)));
+        return response()->json(new ServiceResource(Service::with('items')->findOrFail($id)));
     }
 
     #[OA\Put(
@@ -99,6 +120,16 @@ class ServiceController extends Controller
                     new OA\Property(property: 'price', type: 'number'),
                     new OA\Property(property: 'avg_execution_minutes', type: 'integer'),
                     new OA\Property(property: 'active', type: 'boolean'),
+                    new OA\Property(
+                        property: 'items',
+                        type: 'array',
+                        items: new OA\Items(
+                            properties: [
+                                new OA\Property(property: 'item_id', type: 'integer'),
+                                new OA\Property(property: 'quantity', type: 'integer'),
+                            ]
+                        )
+                    ),
                 ]
             )
         ),
@@ -110,9 +141,20 @@ class ServiceController extends Controller
     public function update(UpdateServiceRequest $request, int $id): JsonResponse
     {
         $service = Service::findOrFail($id);
-        $service->update($request->validated());
+        $service->update($request->safe()->except('items'));
 
-        return response()->json(new ServiceResource($service));
+        if ($request->has('items')) {
+            ServiceItem::where('service_id', $service->id)->delete();
+            foreach ($request->items as $item) {
+                ServiceItem::create([
+                    'service_id' => $service->id,
+                    'item_id' => $item['item_id'],
+                    'quantity' => $item['quantity'] ?? 1,
+                ]);
+            }
+        }
+
+        return response()->json(new ServiceResource($service->load('items')));
     }
 
     #[OA\Delete(

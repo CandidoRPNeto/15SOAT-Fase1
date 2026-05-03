@@ -4,7 +4,7 @@ namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-class AddPartToOrderRequest extends FormRequest
+class AddItemToOrderRequest extends FormRequest
 {
     public function authorize(): bool
     {
@@ -14,7 +14,7 @@ class AddPartToOrderRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'part_id' => ['required', 'integer', 'exists:parts,id'],
+            'item_id' => ['required', 'integer', 'exists:items,id'],
             'quantity' => ['sometimes', 'integer', 'min:1'],
         ];
     }

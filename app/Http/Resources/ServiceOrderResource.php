@@ -23,7 +23,15 @@ class ServiceOrderResource extends JsonResource
             'finalized_at' => $this->finalized_at?->toISOString(),
             'delivered_at' => $this->delivered_at?->toISOString(),
             'services' => ServiceResource::collection($this->whenLoaded('services')),
-            'parts' => PartResource::collection($this->whenLoaded('parts')),
+            'items' => $this->whenLoaded('orderItems', function () {
+                return $this->orderItems->map(fn ($orderItem) => [
+                    'id' => $orderItem->id,
+                    'item' => new ItemResource($orderItem->item),
+                    'requested_quantity' => $orderItem->quantity,
+                    'total_quantity' => $orderItem->item?->stock_quantity,
+                    'unit_price' => $orderItem->unit_price,
+                ]);
+            }),
             'created_at' => $this->created_at?->toISOString(),
         ];
     }

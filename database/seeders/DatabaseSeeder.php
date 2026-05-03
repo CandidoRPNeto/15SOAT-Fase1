@@ -2,12 +2,14 @@
 
 namespace Database\Seeders;
 
+use App\Enums\ItemType;
 use App\Enums\ServiceOrderStatus;
 use App\Enums\UserRole;
-use App\Models\Part;
+use App\Models\Item;
 use App\Models\Service;
+use App\Models\ServiceItem;
 use App\Models\ServiceOrder;
-use App\Models\ServiceOrderPart;
+use App\Models\ServiceOrderItem;
 use App\Models\ServiceOrderService;
 use App\Models\User;
 use App\Models\Vehicle;
@@ -88,7 +90,38 @@ class DatabaseSeeder extends Seeder
         ]));
 
         // ---------------------------------------------------------------
-        // Serviços
+        // Itens (insumos e peças)
+        // ---------------------------------------------------------------
+        $itemsRaw = [
+            ['Filtro de óleo Mann',                 'FO-001',  35.00, 50,  ItemType::PART],
+            ['Pastilha de freio dianteira Bosch',   'PFD-001', 89.00, 30,  ItemType::PART],
+            ['Filtro de ar Mann',                   'FA-001',  45.00, 40,  ItemType::PART],
+            ['Vela de ignição NGK Iridium',         'VI-001',  28.50, 80,  ItemType::PART],
+            ['Correia dentada Gates',               'CD-001', 120.00, 15,  ItemType::PART],
+            ['Tensor de correia',                   'TC-001',  85.00, 12,  ItemType::PART],
+            ['Bomba d\'água',                       'BA-001', 180.00,  8,  ItemType::PART],
+            ['Pastilha de freio traseira Bosch',    'PFT-001', 75.00, 25,  ItemType::PART],
+            ['Óleo de motor 5W30 sintético (1L)',   'OM-001',  32.00, 100, ItemType::SUPPLY],
+            ['Filtro de combustível',               'FC-001',  55.00, 35,  ItemType::PART],
+            ['Vela de ignição NGK standard',        'VS-001',  18.00, 60,  ItemType::PART],
+            ['Correia do alternador',               'CA-001',  45.00, 20,  ItemType::PART],
+            ['Fluido de freio DOT4 (500ml)',        'FF-001',  22.00, 45,  ItemType::SUPPLY],
+            ['Filtro de cabine / ar condicionado',  'FAC-001', 38.00, 30,  ItemType::PART],
+            ['Disco de freio dianteiro',            'DFD-001', 145.00, 10, ItemType::PART],
+        ];
+
+        $items = collect($itemsRaw)->map(fn ($p) => Item::create([
+            'name'           => $p[0],
+            'part_number'    => $p[1],
+            'price'          => $p[2],
+            'stock_quantity' => $p[3],
+            'type'           => $p[4],
+            'description'    => 'Item original de reposição',
+            'active'         => true,
+        ]));
+
+        // ---------------------------------------------------------------
+        // Serviços com seus itens necessários
         // ---------------------------------------------------------------
         $servicesRaw = [
             ['Troca de óleo',                   120.00,  60, 'Troca de óleo do motor com filtro'],
@@ -111,35 +144,29 @@ class DatabaseSeeder extends Seeder
             'active'                => true,
         ]));
 
-        // ---------------------------------------------------------------
-        // Peças
-        // ---------------------------------------------------------------
-        $partsRaw = [
-            ['Filtro de óleo Mann',                 'FO-001',  35.00, 50],
-            ['Pastilha de freio dianteira Bosch',   'PFD-001', 89.00, 30],
-            ['Filtro de ar Mann',                   'FA-001',  45.00, 40],
-            ['Vela de ignição NGK Iridium',         'VI-001',  28.50, 80],
-            ['Correia dentada Gates',               'CD-001', 120.00, 15],
-            ['Tensor de correia',                   'TC-001',  85.00, 12],
-            ['Bomba d\'água',                       'BA-001', 180.00,  8],
-            ['Pastilha de freio traseira Bosch',    'PFT-001', 75.00, 25],
-            ['Óleo de motor 5W30 sintético (1L)',   'OM-001',  32.00, 100],
-            ['Filtro de combustível',               'FC-001',  55.00, 35],
-            ['Vela de ignição NGK standard',        'VS-001',  18.00, 60],
-            ['Correia do alternador',               'CA-001',  45.00, 20],
-            ['Fluido de freio DOT4 (500ml)',        'FF-001',  22.00, 45],
-            ['Filtro de cabine / ar condicionado',  'FAC-001', 38.00, 30],
-            ['Disco de freio dianteiro',            'DFD-001', 145.00, 10],
+        // Itens necessários por serviço: [service_index => [[item_index, qty], ...]]
+        $serviceItemsMap = [
+            0 => [[$items[0], 1], [$items[8], 4]],   // Troca de óleo: filtro óleo + 4L óleo
+            1 => [],                                   // Alinhamento: sem peças
+            2 => [],                                   // Balanceamento: sem peças
+            3 => [[$items[0], 1], [$items[2], 1], [$items[8], 4], [$items[12], 1]], // Revisão completa
+            4 => [[$items[1], 1], [$items[7], 1]],    // Troca pastilhas: dianteira + traseira
+            5 => [],                                   // Diagnóstico: sem peças
+            6 => [[$items[4], 1], [$items[5], 1], [$items[6], 1]], // Correia dentada
+            7 => [[$items[2], 1]],                    // Filtro de ar
+            8 => [[$items[3], 4]],                    // Velas: 4 unidades iridium
+            9 => [[$items[13], 1]],                   // A/C: filtro de cabine
         ];
 
-        $parts = collect($partsRaw)->map(fn ($p) => Part::create([
-            'name'           => $p[0],
-            'part_number'    => $p[1],
-            'price'          => $p[2],
-            'stock_quantity' => $p[3],
-            'description'    => 'Peça original de reposição',
-            'active'         => true,
-        ]));
+        foreach ($serviceItemsMap as $serviceIdx => $itemPairs) {
+            foreach ($itemPairs as [$item, $qty]) {
+                ServiceItem::create([
+                    'service_id' => $services[$serviceIdx]->id,
+                    'item_id'    => $item->id,
+                    'quantity'   => $qty,
+                ]);
+            }
+        }
 
         // ---------------------------------------------------------------
         // Ordens de serviço — uma por status do fluxo
@@ -171,9 +198,9 @@ class DatabaseSeeder extends Seeder
         ]);
         $this->addService($os3, $services[3], 1);
         $this->addService($os3, $services[0], 1);
-        $this->addPart($os3, $parts[0], 1);
-        $this->addPart($os3, $parts[2], 1);
-        $this->addPart($os3, $parts[8], 4);
+        $this->addItem($os3, $items[0], 1);
+        $this->addItem($os3, $items[2], 1);
+        $this->addItem($os3, $items[8], 4);
         $os3->update(['total_amount' => $os3->refresh()->calculateTotal()]);
 
         // 4. approved
@@ -185,9 +212,9 @@ class DatabaseSeeder extends Seeder
             'budget_sent_at' => now()->subDay(),
         ]);
         $this->addService($os4, $services[6], 1);
-        $this->addPart($os4, $parts[4], 1);
-        $this->addPart($os4, $parts[5], 1);
-        $this->addPart($os4, $parts[6], 1);
+        $this->addItem($os4, $items[4], 1);
+        $this->addItem($os4, $items[5], 1);
+        $this->addItem($os4, $items[6], 1);
         $os4->update(['total_amount' => $os4->refresh()->calculateTotal()]);
 
         // 5. cancelled
@@ -199,7 +226,7 @@ class DatabaseSeeder extends Seeder
             'budget_sent_at' => now()->subDays(2),
         ]);
         $this->addService($os5, $services[1], 1);
-        $this->addPart($os5, $parts[1], 1);
+        $this->addItem($os5, $items[1], 1);
         $os5->update(['total_amount' => $os5->refresh()->calculateTotal()]);
 
         // 6. in_execution
@@ -211,9 +238,9 @@ class DatabaseSeeder extends Seeder
             'budget_sent_at' => now()->subDay(),
         ]);
         $this->addService($os6, $services[4], 1);
-        $this->addPart($os6, $parts[1], 1);
-        $this->addPart($os6, $parts[7], 1);
-        $this->addPart($os6, $parts[14], 2);
+        $this->addItem($os6, $items[1], 1);
+        $this->addItem($os6, $items[7], 1);
+        $this->addItem($os6, $items[14], 2);
         $os6->update(['total_amount' => $os6->refresh()->calculateTotal()]);
 
         // 7. finalized (aguardando pagamento)
@@ -227,7 +254,7 @@ class DatabaseSeeder extends Seeder
         ]);
         $this->addService($os7, $services[5], 1);
         $this->addService($os7, $services[8], 1);
-        $this->addPart($os7, $parts[3], 4);
+        $this->addItem($os7, $items[3], 4);
         $os7->update(['total_amount' => $os7->refresh()->calculateTotal()]);
 
         // 8. delivered
@@ -243,9 +270,9 @@ class DatabaseSeeder extends Seeder
         ]);
         $this->addService($os8, $services[0], 1);
         $this->addService($os8, $services[9], 1);
-        $this->addPart($os8, $parts[0], 1);
-        $this->addPart($os8, $parts[13], 1);
-        $this->addPart($os8, $parts[8], 4);
+        $this->addItem($os8, $items[0], 1);
+        $this->addItem($os8, $items[13], 1);
+        $this->addItem($os8, $items[8], 4);
         $os8->update(['total_amount' => $os8->refresh()->calculateTotal()]);
     }
 
@@ -259,13 +286,13 @@ class DatabaseSeeder extends Seeder
         ]);
     }
 
-    private function addPart(ServiceOrder $order, Part $part, int $qty): void
+    private function addItem(ServiceOrder $order, Item $item, int $qty): void
     {
-        ServiceOrderPart::create([
+        ServiceOrderItem::create([
             'service_order_id' => $order->id,
-            'part_id'          => $part->id,
+            'item_id'          => $item->id,
             'quantity'         => $qty,
-            'unit_price'       => $part->price,
+            'unit_price'       => $item->price,
         ]);
     }
 }

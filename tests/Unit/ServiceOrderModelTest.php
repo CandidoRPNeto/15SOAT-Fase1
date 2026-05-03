@@ -3,7 +3,7 @@
 namespace Tests\Unit;
 
 use App\Models\ServiceOrder;
-use App\Models\ServiceOrderPart;
+use App\Models\ServiceOrderItem;
 use App\Models\ServiceOrderService;
 use App\Models\User;
 use App\Models\Vehicle;
@@ -78,15 +78,15 @@ class ServiceOrderModelTest extends TestCase
         $this->assertTrue($order->fresh()->isDeliverable());
     }
 
-    public function test_calculate_total_sums_services_and_parts(): void
+    public function test_calculate_total_sums_services_and_items(): void
     {
         $svc1 = new ServiceOrderService(['unit_price' => '100.00', 'quantity' => 2]);
         $svc2 = new ServiceOrderService(['unit_price' => '50.00', 'quantity' => 1]);
-        $prt1 = new ServiceOrderPart(['unit_price' => '30.00', 'quantity' => 3]);
+        $itm1 = new ServiceOrderItem(['unit_price' => '30.00', 'quantity' => 3]);
 
         $order = new ServiceOrder();
         $order->setRelation('orderServices', new Collection([$svc1, $svc2]));
-        $order->setRelation('orderParts', new Collection([$prt1]));
+        $order->setRelation('orderItems', new Collection([$itm1]));
 
         // 100*2 + 50*1 + 30*3 = 200 + 50 + 90 = 340
         $this->assertEqualsWithDelta(340.0, $order->calculateTotal(), 0.001);

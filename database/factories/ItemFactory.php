@@ -2,13 +2,14 @@
 
 namespace Database\Factories;
 
-use App\Models\Part;
+use App\Enums\ItemType;
+use App\Models\Item;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends Factory<Part>
+ * @extends Factory<Item>
  */
-class PartFactory extends Factory
+class ItemFactory extends Factory
 {
     public function definition(): array
     {
@@ -17,9 +18,20 @@ class PartFactory extends Factory
             'description' => fake()->sentence(),
             'part_number' => strtoupper(fake()->unique()->bothify('??-####-??')),
             'price' => fake()->randomFloat(2, 10, 500),
-            'stock_quantity' => fake()->numberBetween(0, 100),
+            'stock_quantity' => fake()->numberBetween(1, 100),
             'active' => true,
+            'type' => fake()->randomElement([ItemType::SUPPLY, ItemType::PART]),
         ];
+    }
+
+    public function supply(): static
+    {
+        return $this->state(['type' => ItemType::SUPPLY]);
+    }
+
+    public function part(): static
+    {
+        return $this->state(['type' => ItemType::PART]);
     }
 
     public function outOfStock(): static

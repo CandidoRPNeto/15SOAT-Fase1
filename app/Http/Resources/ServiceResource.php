@@ -16,6 +16,14 @@ class ServiceResource extends JsonResource
             'price' => $this->price,
             'avg_execution_minutes' => $this->avg_execution_minutes,
             'active' => $this->active,
+            'items' => $this->whenLoaded('items', function () {
+                return $this->items->map(fn ($item) => [
+                    'id' => $item->id,
+                    'name' => $item->name,
+                    'type' => $item->type->value,
+                    'quantity' => $item->pivot->quantity,
+                ]);
+            }),
             'created_at' => $this->created_at?->toISOString(),
         ];
     }

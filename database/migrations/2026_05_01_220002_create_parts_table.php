@@ -8,7 +8,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('parts', function (Blueprint $table) {
+        Schema::create('items', function (Blueprint $table) {
             $table->id();
             $table->string('name', 120);
             $table->text('description')->nullable();
@@ -16,12 +16,13 @@ return new class extends Migration
             $table->decimal('price', 10, 2);
             $table->unsignedInteger('stock_quantity')->default(0);
             $table->boolean('active')->default(true);
+            $table->string('type', 20)->default('peca');
             $table->timestamps();
         });
     }
 
     public function down(): void
     {
-        Schema::dropIfExists('parts');
+        Schema::dropIfExists('items');
     }
 };
