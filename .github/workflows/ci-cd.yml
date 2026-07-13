@@ -86,11 +86,32 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  # ---- Stage 4 (deploy-k8s) + Stage 6 (apply-manifests, idempotente por natureza no kubectl apply) ----
-  deploy-k8s:
+  # Secrets não são um contexto permitido em `jobs.<id>.if` — a checagem
+  # roda como step (onde secrets é sempre acessível) e expõe o resultado
+  # via output, consumido pelo `if` dos jobs de deploy abaixo.
+  check-kube-secret:
     needs: docker-build
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    outputs:
+      has-kubeconfig: ${{ steps.check.outputs.has-kubeconfig }}
+    steps:
+      - name: Check KUBE_CONFIG secret
+        id: check
+        run: |
+          if [ -n "${{ secrets.KUBE_CONFIG }}" ]; then
+            echo "has-kubeconfig=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has-kubeconfig=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  # ---- Stage 4 (deploy-k8s) + Stage 6 (apply-manifests, idempotente por natureza no kubectl apply) ----
+  deploy-k8s:
+    needs: [docker-build, check-kube-secret]
+    runs-on: ubuntu-latest
+    # Só roda com um cluster real e alcançável configurado via secret
+    # KUBE_CONFIG; sem isso, kubectl cai no fallback localhost:8080 e falha.
+    if: needs.check-kube-secret.outputs.has-kubeconfig == 'true'
     steps:
       - uses: actions/checkout@v4
 
@@ -125,7 +146,7 @@ jobs:
   deploy-db:
     needs: [docker-build, deploy-k8s]
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    if: needs.deploy-k8s.result == 'success'
     steps:
       - uses: actions/checkout@v4
 
