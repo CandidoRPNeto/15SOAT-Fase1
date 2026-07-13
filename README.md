@@ -37,10 +37,10 @@ unidades, mais volume de OS em horários de pico — sem perder qualidade:
 - **Containerização, Kubernetes, Terraform e CI/CD** para suportar
   escalabilidade dinâmica e deploy automatizado.
 
-Detalhes completos da decisão de arquitetura em
-[`docs/specs/fase2/plan.md`](docs/specs/fase2/plan.md) (não faz parte do
-material entregue à disciplina — é o registro de planejamento usado durante
-o desenvolvimento).
+Detalhes completos da decisão de arquitetura foram registrados em
+`docs/specs/fase2/plan.md` durante o desenvolvimento — arquivo local,
+excluído propositalmente via `.gitignore` por ser planejamento interno, não
+material da disciplina.
 
 ### Componentes da aplicação
 
@@ -57,15 +57,27 @@ app/
 │   └── Messaging/               # StubEmailStatusUpdateService
 ├── Contracts/         # PaymentServiceInterface, MessagingServiceInterface,
 │                       # EmailStatusUpdateServiceInterface
-├── Http/               # Controllers finos (parseiam request → chamam
-│                       # Application → devolvem Resource), Requests, Resources
-├── Models/             # Eloquent (adapters de persistência)
-└── Services/           # Stubs (Payment, Messaging)
+├── Enums/              # UserRole, ItemType (insumo/peca)
+├── Http/
+│   ├── Controllers/Api/V1/   # AuthController, ClientController, VehicleController,
+│   │                         # ServiceController, ItemController, ServiceOrderController,
+│   │                         # WebhookController (com anotações @OA)
+│   ├── Middleware/     # EnsureRole — verifica UserRole no token Sanctum
+│   ├── Requests/       # StoreXxx (POST, required) / UpdateXxx (PUT, sometimes)
+│   └── Resources/      # Transformadores de resposta JSON
+├── Jobs/               # SendFineNotificationJob (dispara alerta de atraso)
+├── Models/             # Eloquent (adapters de persistência): User, Vehicle,
+│                       # Service, Item, ServiceItem, ServiceOrder,
+│                       # ServiceOrderService, ServiceOrderItem
+├── Providers/          # AppServiceProvider (bind stubs/repositórios às interfaces)
+└── Services/           # StubPaymentService, StubMessagingService
 ```
 
 Regra de dependência: `Domain` não conhece Laravel/Eloquent; `Application`
 orquestra casos de uso sobre `Domain` + `Ports`; `Infrastructure`/`Http`
-implementam esses Ports e adaptam para fora (HTTP, banco).
+implementam esses Ports e adaptam para fora (HTTP, banco). Integrações
+externas (pagamento e mensageria) são **stubs** — contratos definidos via
+interface, prontos para substituição por implementações reais.
 
 ### Infraestrutura provisionada
 
@@ -232,29 +244,6 @@ A resposta da OS inclui, para cada item:
 | `total_quantity`    | Quantidade disponível em estoque           |
 
 Isso permite ao frontend alertar o mecânico caso o estoque seja insuficiente antes de iniciar a execução.
-
----
-
-## Arquitetura
-
-```
-app/
-├── Contracts/          # Interfaces: PaymentServiceInterface, MessagingServiceInterface
-├── Enums/              # UserRole, ServiceOrderStatus, ItemType (insumo/peca)
-├── Http/
-│   ├── Controllers/Api/V1/   # AuthController, ClientController, VehicleController,
-│   │                         # ServiceController, ItemController, ServiceOrderController
-│   ├── Middleware/     # EnsureRole — verifica UserRole no token Sanctum
-│   ├── Requests/       # StoreXxx / UpdateXxx
-│   └── Resources/      # Transformadores de resposta JSON
-├── Jobs/               # SendFineNotificationJob (dispara alerta de atraso)
-├── Models/             # User, Vehicle, Service, Item, ServiceItem,
-│   │                   # ServiceOrder, ServiceOrderService, ServiceOrderItem
-├── Providers/          # AppServiceProvider (bind stubs às interfaces)
-└── Services/           # StubPaymentService, StubMessagingService
-```
-
-Integrações externas (pagamento e mensageria) são implementadas como **stubs** — contratos definidos via interface, prontos para substituição por implementações reais.
 
 ---
 
