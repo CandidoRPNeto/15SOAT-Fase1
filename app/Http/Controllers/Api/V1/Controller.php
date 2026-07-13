@@ -18,6 +18,4 @@ use OpenApi\Attributes as OA;
     bearerFormat: 'Token',
     description: 'Autenticação via Laravel Sanctum. Inclua o token no header: Authorization: Bearer {token}'
 )]
-abstract class Controller extends \App\Http\Controllers\Controller
-{
-}
+abstract class Controller extends \App\Http\Controllers\Controller {}

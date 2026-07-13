@@ -20,7 +20,7 @@ class UpdateVehicleRequest extends FormRequest
             'plate' => ['sometimes', 'string', 'max:10', "unique:vehicles,plate,{$vehicleId}"],
             'brand' => ['sometimes', 'string', 'max:60'],
             'model' => ['sometimes', 'string', 'max:60'],
-            'year' => ['sometimes', 'integer', 'min:1900', 'max:' . (date('Y') + 1)],
+            'year' => ['sometimes', 'integer', 'min:1900', 'max:'.(date('Y') + 1)],
             'color' => ['nullable', 'string', 'max:30'],
         ];
     }

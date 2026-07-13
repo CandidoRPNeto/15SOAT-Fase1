@@ -34,7 +34,7 @@ class VehicleController extends Controller
         }
 
         if ($request->filled('plate')) {
-            $query->whereRaw('LOWER(plate) LIKE ?', ['%' . strtolower($request->plate) . '%']);
+            $query->whereRaw('LOWER(plate) LIKE ?', ['%'.strtolower($request->plate).'%']);
         }
 
         return VehicleResource::collection($query->paginate(15));

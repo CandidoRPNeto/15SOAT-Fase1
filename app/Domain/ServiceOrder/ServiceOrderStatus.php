@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Enums;
+namespace App\Domain\ServiceOrder;
 
 enum ServiceOrderStatus: string
 {
@@ -15,7 +15,7 @@ enum ServiceOrderStatus: string
 
     public function label(): string
     {
-        return match($this) {
+        return match ($this) {
             self::RECEIVED => 'Recebida',
             self::IN_DIAGNOSIS => 'Em diagnóstico',
             self::AWAITING_APPROVAL => 'Aguardando aprovação',
@@ -29,7 +29,7 @@ enum ServiceOrderStatus: string
 
     public function allowedTransitions(): array
     {
-        return match($this) {
+        return match ($this) {
             self::RECEIVED => [self::IN_DIAGNOSIS],
             self::IN_DIAGNOSIS => [self::AWAITING_APPROVAL],
             self::AWAITING_APPROVAL => [self::APPROVED, self::CANCELLED],

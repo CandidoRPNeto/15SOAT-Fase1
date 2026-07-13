@@ -2,7 +2,7 @@
 
 namespace Tests\Unit;
 
-use App\Enums\ServiceOrderStatus;
+use App\Domain\ServiceOrder\ServiceOrderStatus;
 use PHPUnit\Framework\TestCase;
 
 class ServiceOrderStatusTest extends TestCase

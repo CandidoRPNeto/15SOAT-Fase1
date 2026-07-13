@@ -4,7 +4,7 @@ namespace Tests\Feature;
 
 use App\Contracts\MessagingServiceInterface;
 use App\Contracts\PaymentServiceInterface;
-use App\Enums\ServiceOrderStatus;
+use App\Domain\ServiceOrder\ServiceOrderStatus;
 use App\Models\Item;
 use App\Models\Service;
 use App\Models\ServiceItem;
@@ -20,8 +20,11 @@ class ServiceOrderTest extends TestCase
     use RefreshDatabase;
 
     private User $mechanic;
+
     private User $receptionist;
+
     private User $client;
+
     private Vehicle $vehicle;
 
     protected function setUp(): void
@@ -55,6 +58,42 @@ class ServiceOrderTest extends TestCase
         $this->assertDatabaseHas('service_orders', ['client_id' => $this->client->id]);
     }
 
+    public function test_mechanic_can_create_service_order_with_services_and_items(): void
+    {
+        $service = Service::factory()->create(['price' => 150.00]);
+        $catalogItem = Item::factory()->create(['price' => 25.00]);
+        ServiceItem::create(['service_id' => $service->id, 'item_id' => $catalogItem->id, 'quantity' => 2]);
+        $manualItem = Item::factory()->create(['price' => 10.00]);
+
+        $response = $this->actingAs($this->mechanic)
+            ->postJson('/api/v1/service-orders', [
+                'client_id' => $this->client->id,
+                'vehicle_id' => $this->vehicle->id,
+                'services' => [
+                    ['service_id' => $service->id, 'quantity' => 1],
+                ],
+                'items' => [
+                    ['item_id' => $manualItem->id, 'quantity' => 3],
+                ],
+            ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('status', 'received')
+            ->assertJsonStructure(['number', 'status', 'services', 'items']);
+
+        $this->assertDatabaseHas('service_order_services', [
+            'service_id' => $service->id,
+        ]);
+        $this->assertDatabaseHas('service_order_items', [
+            'item_id' => $catalogItem->id,
+            'quantity' => 2,
+        ]);
+        $this->assertDatabaseHas('service_order_items', [
+            'item_id' => $manualItem->id,
+            'quantity' => 3,
+        ]);
+    }
+
     public function test_client_cannot_create_service_order(): void
     {
         $this->actingAs($this->client)
@@ -63,6 +102,45 @@ class ServiceOrderTest extends TestCase
                 'vehicle_id' => $this->vehicle->id,
             ])
             ->assertForbidden();
+    }
+
+    public function test_mechanic_can_check_order_status(): void
+    {
+        $order = ServiceOrder::factory()->create([
+            'client_id' => $this->client->id,
+            'vehicle_id' => $this->vehicle->id,
+            'status' => ServiceOrderStatus::IN_DIAGNOSIS,
+        ]);
+
+        $this->actingAs($this->mechanic)
+            ->getJson("/api/v1/service-orders/{$order->id}/status")
+            ->assertOk()
+            ->assertExactJson([
+                'id' => $order->id,
+                'number' => $order->number,
+                'status' => 'in_diagnosis',
+                'status_label' => 'Em diagnóstico',
+            ]);
+    }
+
+    public function test_other_client_cannot_check_order_status(): void
+    {
+        $otherClient = User::factory()->client()->create();
+        $order = ServiceOrder::factory()->create([
+            'client_id' => $this->client->id,
+            'vehicle_id' => $this->vehicle->id,
+        ]);
+
+        $this->actingAs($otherClient)
+            ->getJson("/api/v1/service-orders/{$order->id}/status")
+            ->assertForbidden();
+    }
+
+    public function test_check_status_returns_404_when_order_missing(): void
+    {
+        $this->actingAs($this->mechanic)
+            ->getJson('/api/v1/service-orders/999/status')
+            ->assertNotFound();
     }
 
     public function test_mechanic_can_add_service_to_order(): void
@@ -416,5 +494,68 @@ class ServiceOrderTest extends TestCase
             ->getJson('/api/v1/service-orders')
             ->assertOk()
             ->assertJsonPath('meta.total', 5);
+    }
+
+    public function test_default_listing_excludes_finalized_and_delivered(): void
+    {
+        ServiceOrder::factory()->received()->create([
+            'client_id' => $this->client->id,
+            'vehicle_id' => $this->vehicle->id,
+        ]);
+        ServiceOrder::factory()->finalized()->create([
+            'client_id' => $this->client->id,
+            'vehicle_id' => $this->vehicle->id,
+        ]);
+        ServiceOrder::factory()->delivered()->create([
+            'client_id' => $this->client->id,
+            'vehicle_id' => $this->vehicle->id,
+        ]);
+
+        $this->actingAs($this->mechanic)
+            ->getJson('/api/v1/service-orders')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('data.0.status', 'received');
+    }
+
+    public function test_default_listing_is_sorted_by_status_priority_then_oldest_first(): void
+    {
+        $received = ServiceOrder::factory()->received()->create([
+            'client_id' => $this->client->id,
+            'vehicle_id' => $this->vehicle->id,
+            'created_at' => now()->subDay(),
+        ]);
+        $inExecution = ServiceOrder::factory()->create([
+            'client_id' => $this->client->id,
+            'vehicle_id' => $this->vehicle->id,
+            'status' => ServiceOrderStatus::IN_EXECUTION,
+            'created_at' => now(),
+        ]);
+        $awaitingApproval = ServiceOrder::factory()->awaitingApproval()->create([
+            'client_id' => $this->client->id,
+            'vehicle_id' => $this->vehicle->id,
+            'created_at' => now(),
+        ]);
+
+        $response = $this->actingAs($this->mechanic)
+            ->getJson('/api/v1/service-orders')
+            ->assertOk();
+
+        $response->assertJsonPath('data.0.id', $inExecution->id)
+            ->assertJsonPath('data.1.id', $awaitingApproval->id)
+            ->assertJsonPath('data.2.id', $received->id);
+    }
+
+    public function test_explicit_status_filter_still_returns_finalized_orders(): void
+    {
+        ServiceOrder::factory()->finalized()->create([
+            'client_id' => $this->client->id,
+            'vehicle_id' => $this->vehicle->id,
+        ]);
+
+        $this->actingAs($this->mechanic)
+            ->getJson('/api/v1/service-orders?status=finalized')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1);
     }
 }

@@ -13,7 +13,7 @@ class StubMessagingService implements MessagingServiceInterface
         // Stub: simulates external messaging gateway dispatch
         return [
             'success' => true,
-            'message_id' => 'MSG-' . strtoupper(Str::random(10)),
+            'message_id' => 'MSG-'.strtoupper(Str::random(10)),
             'message' => "Mensagem enviada ao cliente {$order->client->name}: {$message}",
         ];
     }
@@ -22,8 +22,8 @@ class StubMessagingService implements MessagingServiceInterface
     {
         $vehicle = $order->vehicle;
         $message = "Olá {$order->client->name}! Sua OS {$order->number} foi criada. "
-            . "Veículo: {$vehicle->brand} {$vehicle->model} ({$vehicle->plate}). "
-            . "Status: Recebida.";
+            ."Veículo: {$vehicle->brand} {$vehicle->model} ({$vehicle->plate}). "
+            .'Status: Recebida.';
 
         return $this->send($order, $message);
     }
@@ -31,8 +31,8 @@ class StubMessagingService implements MessagingServiceInterface
     public function notifyBudgetReady(ServiceOrder $order): array
     {
         $message = "Olá {$order->client->name}! O orçamento da sua OS {$order->number} está disponível. "
-            . "Valor total: R$ " . number_format((float) $order->total_amount, 2, ',', '.') . ". "
-            . "Acesse o sistema para aprovar ou cancelar.";
+            .'Valor total: R$ '.number_format((float) $order->total_amount, 2, ',', '.').'. '
+            .'Acesse o sistema para aprovar ou cancelar.';
 
         return $this->send($order, $message);
     }
@@ -41,7 +41,7 @@ class StubMessagingService implements MessagingServiceInterface
     {
         $vehicle = $order->vehicle;
         $message = "Olá {$order->client->name}! Seu veículo {$vehicle->brand} {$vehicle->model} ({$vehicle->plate}) "
-            . "está pronto! Por favor, retire em até 24 horas para evitar taxas de permanência.";
+            .'está pronto! Por favor, retire em até 24 horas para evitar taxas de permanência.';
 
         return $this->send($order, $message);
     }
@@ -50,8 +50,8 @@ class StubMessagingService implements MessagingServiceInterface
     {
         $vehicle = $order->vehicle;
         $message = "Olá {$order->client->name}! Seu veículo {$vehicle->brand} {$vehicle->model} ({$vehicle->plate}) "
-            . "está aguardando retirada há mais de 24 horas. "
-            . "Uma taxa de permanência será aplicada. Por favor, retire o veículo o quanto antes.";
+            .'está aguardando retirada há mais de 24 horas. '
+            .'Uma taxa de permanência será aplicada. Por favor, retire o veículo o quanto antes.';
 
         return $this->send($order, $message);
     }

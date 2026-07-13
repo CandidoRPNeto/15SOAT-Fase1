@@ -13,7 +13,7 @@ class StubPaymentService implements PaymentServiceInterface
         // Stub: simulates external payment gateway approval
         return [
             'success' => true,
-            'transaction_id' => 'TXN-' . strtoupper(Str::random(12)),
+            'transaction_id' => 'TXN-'.strtoupper(Str::random(12)),
             'message' => "Pagamento de R$ {$order->total_amount} processado com sucesso.",
         ];
     }

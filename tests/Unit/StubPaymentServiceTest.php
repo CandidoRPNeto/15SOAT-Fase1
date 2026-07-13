@@ -23,7 +23,7 @@ class StubPaymentServiceTest extends TestCase
             'total_amount' => '350.00',
         ]);
 
-        $service = new StubPaymentService();
+        $service = new StubPaymentService;
         $result = $service->processPayment($order);
 
         $this->assertTrue($result['success']);
@@ -41,7 +41,7 @@ class StubPaymentServiceTest extends TestCase
             'total_amount' => '100.00',
         ]);
 
-        $service = new StubPaymentService();
+        $service = new StubPaymentService;
         $r1 = $service->processPayment($order);
         $r2 = $service->processPayment($order);
 

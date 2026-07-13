@@ -116,15 +116,15 @@ app/
 ├── Enums/              # UserRole, ServiceOrderStatus (com canTransitionTo)
 ├── Http/
 │   ├── Controllers/Api/V1/  # AuthController, ClientController, VehicleController,
-│   │                        # ServiceController, PartController, ServiceOrderController,
+│   │                        # ServiceController, ItemController, ServiceOrderController,
 │   │                        # WebhookController (com anotações @OA\*)
 │   ├── Middleware/     # EnsureRole — verifica UserRole no token Sanctum
 │   ├── Requests/       # StoreXxx / UpdateXxx (todos com authorize(): true)
 │   └── Resources/      # UserResource, VehicleResource, ServiceResource,
-│                       # PartResource, ServiceOrderResource
+│                       # ItemResource, ServiceOrderResource
 ├── Jobs/               # SendFineNotificationJob (dispatchable, shouldQueue)
-├── Models/             # User, Vehicle, Service, Part, ServiceOrder,
-│                       # ServiceOrderService, ServiceOrderPart
+├── Models/             # User, Vehicle, Service, Item, ServiceOrder,
+│                       # ServiceOrderService, ServiceOrderItem
 ├── Providers/          # AppServiceProvider (binds stubs às interfaces)
 └── Services/           # StubPaymentService, StubMessagingService
 
@@ -136,9 +136,9 @@ routes/
 
 database/
 ├── factories/          # UserFactory (receptionist/mechanic/client), VehicleFactory,
-│                       # ServiceFactory, PartFactory, ServiceOrderFactory
-├── migrations/         # users (role/cpf_cnpj/phone), vehicles, services, parts,
-│                       # service_orders, service_order_services, service_order_parts
+│                       # ServiceFactory, ItemFactory, ServiceOrderFactory
+├── migrations/         # users (role/cpf_cnpj/phone), vehicles, services, items,
+│                       # service_orders, service_order_services, service_order_items
 └── seeders/            # DatabaseSeeder — popula perfis e catálogo inicial
 ```
 

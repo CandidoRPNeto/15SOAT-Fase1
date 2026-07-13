@@ -317,13 +317,13 @@
                 ]
             }
         },
-        "/api/v1/parts": {
+        "/api/v1/items": {
             "get": {
                 "tags": [
-                    "Parts"
+                    "Items"
                 ],
-                "summary": "Lista peças",
-                "operationId": "f19a0688d27324fb398104f0fc461d7b",
+                "summary": "Lista itens",
+                "operationId": "b0d25f98079fb7b45ad862f44b8c64e3",
                 "parameters": [
                     {
                         "name": "active",
@@ -331,6 +331,15 @@
                         "required": false,
                         "schema": {
                             "type": "boolean"
+                        }
+                    },
+                    {
+                        "name": "type",
+                        "in": "query",
+                        "description": "insumo ou peca",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
                         }
                     },
                     {
@@ -345,7 +354,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Lista de peças"
+                        "description": "Lista de itens"
                     }
                 },
                 "security": [
@@ -356,10 +365,10 @@
             },
             "post": {
                 "tags": [
-                    "Parts"
+                    "Items"
                 ],
-                "summary": "Cadastra peça",
-                "operationId": "d48eb3679fae100136251b4d0aaa3f79",
+                "summary": "Cadastra item",
+                "operationId": "dac4b59d4bc5571caaa792e2232b64bc",
                 "requestBody": {
                     "required": true,
                     "content": {
@@ -367,7 +376,8 @@
                             "schema": {
                                 "required": [
                                     "name",
-                                    "price"
+                                    "price",
+                                    "type"
                                 ],
                                 "properties": {
                                     "name": {
@@ -393,6 +403,14 @@
                                     "active": {
                                         "type": "boolean",
                                         "example": true
+                                    },
+                                    "type": {
+                                        "type": "string",
+                                        "example": "peca",
+                                        "enum": [
+                                            "insumo",
+                                            "peca"
+                                        ]
                                     }
                                 },
                                 "type": "object"
@@ -402,7 +420,7 @@
                 },
                 "responses": {
                     "201": {
-                        "description": "Peça criada"
+                        "description": "Item criado"
                     },
                     "422": {
                         "description": "Dados inválidos"
@@ -415,13 +433,13 @@
                 ]
             }
         },
-        "/api/v1/parts/{id}": {
+        "/api/v1/items/{id}": {
             "get": {
                 "tags": [
-                    "Parts"
+                    "Items"
                 ],
-                "summary": "Exibe peça",
-                "operationId": "1f29d8130c1a8781cd037611a161aaa3",
+                "summary": "Exibe item",
+                "operationId": "b2ef487fdbf96504dce1c2f3b2890cbe",
                 "parameters": [
                     {
                         "name": "id",
@@ -434,10 +452,10 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Dados da peça"
+                        "description": "Dados do item"
                     },
                     "404": {
-                        "description": "Não encontrada"
+                        "description": "Não encontrado"
                     }
                 },
                 "security": [
@@ -448,10 +466,10 @@
             },
             "put": {
                 "tags": [
-                    "Parts"
+                    "Items"
                 ],
-                "summary": "Atualiza peça",
-                "operationId": "fa044eea40faba7f8c051a5893489c3d",
+                "summary": "Atualiza item",
+                "operationId": "281617222509100bbb0d5147b6f1e119",
                 "parameters": [
                     {
                         "name": "id",
@@ -479,6 +497,13 @@
                                     },
                                     "active": {
                                         "type": "boolean"
+                                    },
+                                    "type": {
+                                        "type": "string",
+                                        "enum": [
+                                            "insumo",
+                                            "peca"
+                                        ]
                                     }
                                 },
                                 "type": "object"
@@ -488,10 +513,10 @@
                 },
                 "responses": {
                     "200": {
-                        "description": "Peça atualizada"
+                        "description": "Item atualizado"
                     },
                     "404": {
-                        "description": "Não encontrada"
+                        "description": "Não encontrado"
                     }
                 },
                 "security": [
@@ -502,10 +527,10 @@
             },
             "delete": {
                 "tags": [
-                    "Parts"
+                    "Items"
                 ],
-                "summary": "Remove peça",
-                "operationId": "b1435c6188201380f7e4ab3aa0e8f5bd",
+                "summary": "Remove item",
+                "operationId": "f07fb6c818899f3957093c9e6898a654",
                 "parameters": [
                     {
                         "name": "id",
@@ -518,10 +543,10 @@
                 ],
                 "responses": {
                     "204": {
-                        "description": "Peça removida"
+                        "description": "Item removido"
                     },
                     "404": {
-                        "description": "Não encontrada"
+                        "description": "Não encontrado"
                     }
                 },
                 "security": [
@@ -594,6 +619,22 @@
                                     "active": {
                                         "type": "boolean",
                                         "example": true
+                                    },
+                                    "items": {
+                                        "type": "array",
+                                        "items": {
+                                            "properties": {
+                                                "item_id": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "quantity": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
                                     }
                                 },
                                 "type": "object"
@@ -680,6 +721,20 @@
                                     },
                                     "active": {
                                         "type": "boolean"
+                                    },
+                                    "items": {
+                                        "type": "array",
+                                        "items": {
+                                            "properties": {
+                                                "item_id": {
+                                                    "type": "integer"
+                                                },
+                                                "quantity": {
+                                                    "type": "integer"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
                                     }
                                 },
                                 "type": "object"
@@ -738,6 +793,7 @@
                     "ServiceOrders"
                 ],
                 "summary": "Lista ordens de serviço",
+                "description": "Sem o filtro `status`, exclui OS finalizadas/entregues e ordena por prioridade (Em Execução > Aguardando Aprovação > Diagnóstico > Recebida, mais antigas primeiro).",
                 "operationId": "37002ce155bedc30b00018237d47d174",
                 "parameters": [
                     {
@@ -750,6 +806,14 @@
                     },
                     {
                         "name": "client_id",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "page",
                         "in": "query",
                         "required": false,
                         "schema": {
@@ -794,6 +858,38 @@
                                     },
                                     "notes": {
                                         "type": "string"
+                                    },
+                                    "services": {
+                                        "type": "array",
+                                        "items": {
+                                            "properties": {
+                                                "service_id": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "quantity": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "items": {
+                                        "type": "array",
+                                        "items": {
+                                            "properties": {
+                                                "item_id": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "quantity": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
                                     }
                                 },
                                 "type": "object"
@@ -803,7 +899,7 @@
                 },
                 "responses": {
                     "201": {
-                        "description": "OS criada"
+                        "description": "OS criada, com identificação única e, se informados, serviços/itens já anexados"
                     },
                     "422": {
                         "description": "Dados inválidos"
@@ -821,7 +917,7 @@
                 "tags": [
                     "ServiceOrders"
                 ],
-                "summary": "Exibe OS com serviços e peças",
+                "summary": "Exibe OS com serviços e itens",
                 "operationId": "333f09eaf953dc171b140ac638e192ff",
                 "parameters": [
                     {
@@ -848,12 +944,47 @@
                 ]
             }
         },
+        "/api/v1/service-orders/{id}/status": {
+            "get": {
+                "tags": [
+                    "ServiceOrders"
+                ],
+                "summary": "Consulta apenas a situação atual da OS",
+                "operationId": "63e8aba8e041af88027383dc59c0712b",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Situação atual da OS"
+                    },
+                    "403": {
+                        "description": "Acesso não autorizado"
+                    },
+                    "404": {
+                        "description": "OS não encontrada"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
         "/api/v1/service-orders/{id}/services": {
             "post": {
                 "tags": [
                     "ServiceOrders"
                 ],
-                "summary": "Adiciona serviço à OS (mecânico)",
+                "summary": "Adiciona serviço à OS e inclui automaticamente seus itens necessários (mecânico)",
                 "operationId": "e528985859357de8c27c7686d5016e52",
                 "parameters": [
                     {
@@ -890,7 +1021,7 @@
                 },
                 "responses": {
                     "201": {
-                        "description": "Serviço adicionado"
+                        "description": "Serviço adicionado e itens criados automaticamente"
                     },
                     "422": {
                         "description": "OS não permite alteração neste status"
@@ -903,13 +1034,13 @@
                 ]
             }
         },
-        "/api/v1/service-orders/{id}/parts": {
+        "/api/v1/service-orders/{id}/items": {
             "post": {
                 "tags": [
                     "ServiceOrders"
                 ],
-                "summary": "Adiciona peça à OS (mecânico)",
-                "operationId": "ea7e6b9cd76568f6eb40f33896b06bb4",
+                "summary": "Adiciona item manualmente à lista de itens da OS (mecânico)",
+                "operationId": "345fed896057656327c95bde9cc3a910",
                 "parameters": [
                     {
                         "name": "id",
@@ -926,10 +1057,10 @@
                         "application/json": {
                             "schema": {
                                 "required": [
-                                    "part_id"
+                                    "item_id"
                                 ],
                                 "properties": {
-                                    "part_id": {
+                                    "item_id": {
                                         "type": "integer",
                                         "example": 1
                                     },
@@ -945,10 +1076,54 @@
                 },
                 "responses": {
                     "201": {
-                        "description": "Peça adicionada"
+                        "description": "Item adicionado"
                     },
                     "422": {
-                        "description": "Estoque insuficiente ou status inválido"
+                        "description": "Status inválido"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/service-orders/{id}/items/{itemId}": {
+            "delete": {
+                "tags": [
+                    "ServiceOrders"
+                ],
+                "summary": "Remove item da lista de itens da OS (mecânico)",
+                "operationId": "9cf6314b73bc46bc6a766900976b2c0a",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "itemId",
+                        "in": "path",
+                        "description": "ID do registro service_order_items",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Item removido da OS"
+                    },
+                    "404": {
+                        "description": "Item não encontrado na OS"
+                    },
+                    "422": {
+                        "description": "Status inválido"
                     }
                 },
                 "security": [
@@ -1425,12 +1600,35 @@
                 "tags": [
                     "Webhook"
                 ],
-                "summary": "Webhook do sistema de mensageria — retorna OS abertas",
-                "description": "Chamado pelo sistema de mensageria externo. Retorna lista de OS com status aberto (não canceladas e não entregues), com status, orçamento, modelo e placa do veículo.",
+                "summary": "Webhook do sistema de mensageria — retorna OS abertas ou processa aprovação de orçamento",
+                "description": "Chamado pelo sistema de mensageria externo. Sem corpo, retorna a lista de OS com status aberto (não canceladas e não entregues). Com `event` = `budget_approved` ou `budget_rejected` e `order_number`, aplica a decisão do cliente sobre o orçamento.",
                 "operationId": "dc4dbebd8da9b3ceddc2b7f5c175216c",
+                "requestBody": {
+                    "required": false,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "event": {
+                                        "type": "string",
+                                        "enum": [
+                                            "budget_approved",
+                                            "budget_rejected"
+                                        ]
+                                    },
+                                    "order_number": {
+                                        "type": "string",
+                                        "example": "OS-2026-00001"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
                 "responses": {
                     "200": {
-                        "description": "Lista de OS abertas",
+                        "description": "Lista de OS abertas ou confirmação da decisão de orçamento",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -1469,6 +1667,12 @@
                                 }
                             }
                         }
+                    },
+                    "404": {
+                        "description": "OS não encontrada (informada em order_number)"
+                    },
+                    "422": {
+                        "description": "Evento inválido ou status da OS não permite a decisão"
                     }
                 }
             }
@@ -1494,8 +1698,8 @@
             "description": "CRUD de clientes (perfis: receptionist, mechanic)"
         },
         {
-            "name": "Parts",
-            "description": "CRUD de peças e insumos com controle de estoque"
+            "name": "Items",
+            "description": "CRUD de itens (insumos e peças) com controle de estoque"
         },
         {
             "name": "Services",

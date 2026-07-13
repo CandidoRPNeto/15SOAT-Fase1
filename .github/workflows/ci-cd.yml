@@ -1,0 +1,149 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  # ---- Stage 1 (build) + Stage 2 (test) ----
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: pdo, pdo_sqlite, pdo_pgsql, mbstring, xml, bcmath, zip
+          coverage: none
+          tools: composer
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install PHP dependencies
+        run: composer install --no-interaction --prefer-dist
+
+      - name: Install Node dependencies and build assets
+        run: |
+          npm ci
+          npm run build
+
+      - name: Prepare environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+
+      # Testes rodam em SQLite :memory: (ver phpunit.xml) — não precisa de
+      # serviço de banco no CI.
+      - name: Run test suite
+        run: php artisan test --no-coverage
+
+  # ---- Stage 3: build + push da imagem Docker ----
+  docker-build:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.image.outputs.name }}:${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compute image name (GHCR exige minúsculas)
+        id: image
+        run: |
+          echo "name=ghcr.io/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        if: github.event_name == 'push'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: ${{ github.event_name == 'push' }}
+          tags: |
+            ${{ steps.image.outputs.name }}:${{ github.sha }}
+            ${{ steps.image.outputs.name }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ---- Stage 4 (deploy-k8s) + Stage 6 (apply-manifests, idempotente por natureza no kubectl apply) ----
+  deploy-k8s:
+    needs: docker-build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+
+      # Requer o secret KUBE_CONFIG (kubeconfig do cluster alvo, em base64):
+      #   kubectl config view --raw | base64 -w0
+      - name: Configure kubeconfig
+        run: |
+          mkdir -p "$HOME/.kube"
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > "$HOME/.kube/config"
+
+      - name: Point manifests to the image just published
+        run: |
+          sed -i "s|workshop-os-app:latest|${{ needs.docker-build.outputs.image }}|" \
+            k8s/deployment.yaml k8s/migrate-job.yaml
+
+      - name: Apply manifests
+        run: |
+          kubectl apply -f k8s/configmap.yaml
+          kubectl apply -f k8s/secret.yaml
+          kubectl apply -f k8s/postgres.yaml
+          kubectl apply -f k8s/deployment.yaml
+          kubectl apply -f k8s/service.yaml
+          kubectl apply -f k8s/hpa.yaml
+
+      - name: Wait for app rollout
+        run: kubectl rollout status deployment/workshop-os-app --timeout=120s
+
+  # ---- Stage 5: deploy-db (migrations) ----
+  deploy-db:
+    needs: [docker-build, deploy-k8s]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Configure kubeconfig
+        run: |
+          mkdir -p "$HOME/.kube"
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > "$HOME/.kube/config"
+
+      - name: Point migration job to the image just published
+        run: |
+          sed -i "s|workshop-os-app:latest|${{ needs.docker-build.outputs.image }}|" \
+            k8s/migrate-job.yaml
+
+      - name: Run migrate + seed job
+        run: |
+          kubectl delete job workshop-os-migrate --ignore-not-found
+          kubectl apply -f k8s/migrate-job.yaml
+          kubectl wait --for=condition=complete job/workshop-os-migrate --timeout=180s

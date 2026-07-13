@@ -1,0 +1,18 @@
+# Acesso local recomendado (funciona independentemente da config do kind):
+#   kubectl port-forward svc/workshop-os-app 8000:8000
+#
+# nodePort fixo em 30080 para bater com o hostPort mapeado em
+# infra/cluster (var.api_node_port) — sem isso, o kind escolheria uma porta
+# aleatória (30000-32767) e o mapeamento do cluster ficaria "solto".
+apiVersion: v1
+kind: Service
+metadata:
+  name: workshop-os-app
+spec:
+  type: NodePort
+  selector:
+    app: workshop-os-app
+  ports:
+    - port: 8000
+      targetPort: 8000
+      nodePort: 30080

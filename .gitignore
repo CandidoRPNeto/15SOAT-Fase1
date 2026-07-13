@@ -24,3 +24,23 @@ _ide_helper.php
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+# AI tooling (local only, not part of the deliverable)
+/.claude/
+/graphify-out/
+/evolucao_fase2
+/.aider*
+/.windsurf/
+/.continue/
+
+# Internal Fase 2 planning docs (not part of the graded deliverable)
+/docs/specs/
+
+# Terraform (keep *.lock.hcl — see infra/README.md)
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+crash.log
+crash.*.log

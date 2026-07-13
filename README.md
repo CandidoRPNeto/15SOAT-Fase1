@@ -1,4 +1,4 @@
-# 15SOAT - Fase 1 - Tech Challenge
+# 15SOAT - Fase 1/2 - Tech Challenge
 
 API RESTful para gestão de ordens de serviço (OS) de uma oficina mecânica.
 
@@ -8,18 +8,90 @@ API RESTful para gestão de ordens de serviço (OS) de uma oficina mecânica.
 
 | Camada       | Tecnologia                        |
 |--------------|-----------------------------------|
-| Linguagem    | PHP 8.3                           |
+| Linguagem    | PHP `^8.3` (imagem Docker/CI usa 8.4) |
 | Framework    | Laravel 13                        |
-| Banco        | PostgreSQL 16 (produção/Docker)   |
+| Banco        | PostgreSQL 16 (produção/Docker/K8s) |
 | Banco testes | SQLite `:memory:`                 |
 | Auth         | Laravel Sanctum (API tokens)      |
 | Docs         | L5-Swagger / OpenAPI 3            |
 | Fila         | Database driver                   |
-| Container    | Docker + Docker Compose           |
+| Container    | Docker (multi-stage)              |
+| Orquestração | Kubernetes (`/k8s`)               |
+| IaC          | Terraform (`/infra`)              |
+| CI/CD        | GitHub Actions (`.github/workflows/ci-cd.yml`) |
+
+---
+
+## Fase 2 — objetivo desta evolução
+
+A Fase 1 entregou o sistema inicial de gestão de OS, veículos, clientes e
+estoque. A Fase 2 evolui essa aplicação para suportar crescimento — mais
+unidades, mais volume de OS em horários de pico — sem perder qualidade:
+
+- Refatoração para **Arquitetura Hexagonal leve** (`Domain` → `Application`
+  → `Infrastructure`/`Http`), preservando as regras de negócio da Fase 1.
+- Novas/alteradas APIs de OS: abertura com serviços/itens no mesmo payload,
+  consulta rápida de status, aprovação de orçamento via webhook, listagem
+  ordenada por prioridade de status, atualização de status via e-mail
+  (stub).
+- **Containerização, Kubernetes, Terraform e CI/CD** para suportar
+  escalabilidade dinâmica e deploy automatizado.
+
+Detalhes completos da decisão de arquitetura em
+[`docs/specs/fase2/plan.md`](docs/specs/fase2/plan.md) (não faz parte do
+material entregue à disciplina — é o registro de planejamento usado durante
+o desenvolvimento).
+
+### Componentes da aplicação
+
+```
+app/
+├── Domain/          # Regras de negócio puras, sem framework
+│   └── ServiceOrder/       # ServiceOrderStatus, ServiceOrderPolicy
+├── Application/      # Casos de uso (orquestração) + Ports
+│   ├── ServiceOrder/       # OpenServiceOrder, GetServiceOrderStatus,
+│   │                       # ApproveBudget, ListServiceOrders
+│   └── Ports/               # ServiceOrderRepository (interface)
+├── Infrastructure/   # Adapters do Domain/Application
+│   ├── Persistence/Eloquent/   # EloquentServiceOrderRepository
+│   └── Messaging/               # StubEmailStatusUpdateService
+├── Contracts/         # PaymentServiceInterface, MessagingServiceInterface,
+│                       # EmailStatusUpdateServiceInterface
+├── Http/               # Controllers finos (parseiam request → chamam
+│                       # Application → devolvem Resource), Requests, Resources
+├── Models/             # Eloquent (adapters de persistência)
+└── Services/           # Stubs (Payment, Messaging)
+```
+
+Regra de dependência: `Domain` não conhece Laravel/Eloquent; `Application`
+orquestra casos de uso sobre `Domain` + `Ports`; `Infrastructure`/`Http`
+implementam esses Ports e adaptam para fora (HTTP, banco).
+
+### Infraestrutura provisionada
+
+| Camada       | Onde                | O quê |
+|--------------|---------------------|-------|
+| Container    | `Dockerfile`         | Build multi-stage: `deps` (composer) → `frontend` (npm/vite) → `runtime` (imagem final enxuta) |
+| Orquestração | `k8s/`               | Deployment + Service + ConfigMap + Secret + HPA da API, Deployment + Service + PVC do Postgres, Job de migração |
+| IaC          | `infra/`             | Terraform: `infra/cluster` provisiona o cluster kind local; `infra/database` aplica os manifestos de banco/config reaproveitando os arquivos de `k8s/` |
+| CI/CD        | `.github/workflows/` | Pipeline de build, testes, build+push da imagem e deploy no cluster |
+
+### Fluxo de deploy
+
+```
+push/PR → build (composer+npm) → test (PHPUnit, SQLite :memory:)
+        → docker-build (build + push da imagem para ghcr.io, só em push p/ master)
+        → deploy-k8s (kubectl apply: configmap, secret, postgres, deployment, service, hpa)
+        → deploy-db (Job de migração + seed)
+```
+
+Detalhes de cada estágio em [`.github/workflows/ci-cd.yml`](.github/workflows/ci-cd.yml).
 
 ---
 
 ## Como rodar
+
+### Execução local (Docker Compose)
 
 > Necessário ter o Docker instalado na máquina.
 
@@ -34,11 +106,58 @@ O container sobe o banco, roda as migrations, popula os dados de demonstração 
 | API        | http://localhost:8000/api/v1/             |
 | Swagger UI | http://localhost:8000/api/documentation   |
 
+### Deploy em Kubernetes
+
+> Necessário ter Docker, [kind](https://kind.sigs.k8s.io/) e `kubectl`
+> instalados. Provisione o cluster primeiro com Terraform (próxima seção)
+> ou com `kind create cluster`.
+
+```bash
+# build local da imagem usada pelos manifests
+docker build -t workshop-os-app:latest .
+kind load docker-image workshop-os-app:latest --name workshop-os
+
+# aplica config, secret, banco e a API
+kubectl apply -f k8s/configmap.yaml -f k8s/secret.yaml -f k8s/postgres.yaml \
+               -f k8s/deployment.yaml -f k8s/service.yaml -f k8s/hpa.yaml
+
+# roda a migração/seed uma única vez
+kubectl apply -f k8s/migrate-job.yaml
+kubectl wait --for=condition=complete job/workshop-os-migrate --timeout=180s
+
+# acesso local — funciona sempre:
+kubectl port-forward svc/workshop-os-app 8000:8000
+# alternativa, só se o cluster foi criado via infra/cluster (Terraform):
+# http://localhost:30080 já é mapeado para o NodePort da API (ver k8s/service.yaml)
+```
+
+Detalhes de cada manifesto em [`k8s/`](k8s/). O HPA (`k8s/hpa.yaml`) requer
+o [metrics-server](https://github.com/kubernetes-sigs/metrics-server)
+instalado no cluster (não vem por padrão no kind).
+
+### Provisionamento da infraestrutura com Terraform
+
+> Necessário ter Docker e Terraform `>= 1.5` instalados.
+
+```bash
+cd infra/cluster && terraform init && terraform apply   # cria o cluster kind
+cd ../database   && terraform init && terraform apply   # aplica config/secret/postgres no cluster
+```
+
+Recursos criados por cada módulo, ordem de `destroy` e pré-requisitos em
+[`infra/README.md`](infra/README.md).
+
 ---
 
 ## Testar a API
 
-Importe o arquivo `Tech_Challenge.postman_collection.json` no Postman.
+- **Postman**: importe [`Tech_Challenge.postman_collection.json`](Tech_Challenge.postman_collection.json)
+  — inclui as APIs alteradas/criadas na Fase 2 (consulta de status, decisão
+  de orçamento via webhook, abertura de OS com serviços/itens no payload).
+- **Swagger/OpenAPI**: com a aplicação rodando, acesse
+  **http://localhost:8000/api/documentation** (spec gerada em
+  `storage/api-docs/api-docs.json`, regenerável com
+  `php artisan l5-swagger:generate`).
 
 ---
 
@@ -84,8 +203,9 @@ Authorization: Bearer {token}
 | GET    | `/api/v1/items`                               | recepcionista/mecânico  | Listar itens em estoque                         |
 | POST   | `/api/v1/items`                               | recepcionista/mecânico  | Cadastrar item (`type`: `insumo` ou `peca`)     |
 | PUT    | `/api/v1/items/{id}`                          | recepcionista/mecânico  | Atualizar item / ajustar estoque                |
-| GET    | `/api/v1/service-orders`                      | todos                   | Listar ordens de serviço                        |
-| POST   | `/api/v1/service-orders`                      | recepcionista/mecânico  | Criar OS                                        |
+| GET    | `/api/v1/service-orders`                      | todos                   | Listar OS — exclui finalizadas/entregues e ordena por prioridade de status (sem filtro `status`) |
+| POST   | `/api/v1/service-orders`                      | recepcionista/mecânico  | Criar OS (aceita `services[]`/`items[]` já no payload) |
+| GET    | `/api/v1/service-orders/{id}/status`          | todos                   | Consulta rápida da situação atual da OS         |
 | POST   | `/api/v1/service-orders/{id}/services`        | mecânico                | Adicionar serviço (cria itens automaticamente)  |
 | POST   | `/api/v1/service-orders/{id}/items`           | mecânico                | Adicionar item manualmente à OS                 |
 | DELETE | `/api/v1/service-orders/{id}/items/{itemId}`  | mecânico                | Remover item da OS                              |
@@ -94,7 +214,7 @@ Authorization: Bearer {token}
 | POST   | `/api/v1/service-orders/{id}/cancel`          | cliente                 | Cancelar orçamento                              |
 | POST   | `/api/v1/service-orders/{id}/pay`             | cliente                 | Pagar OS                                        |
 | POST   | `/api/v1/service-orders/{id}/deliver`         | recepcionista           | Entregar veículo                                |
-| POST   | `/webhook/messaging`                          | público                 | Webhook externo                                 |
+| POST   | `/webhook/messaging`                          | público                 | Sem corpo: lista OS abertas. Com `event`=`budget_approved`/`budget_rejected` + `order_number`: aplica a decisão do cliente |
 
 Documentação completa e interativa em **http://localhost:8000/api/documentation**.
 
@@ -152,7 +272,7 @@ Rodar com relatório de cobertura no terminal + arquivos para o SonarQube:
 XDEBUG_MODE=coverage php artisan test --coverage --coverage-clover=coverage.xml --log-junit=test-results.xml
 ```
 
-**Resultado atual: 89 testes, 208 assertions.**
+**Resultado atual: 131 testes, 286 assertions.**
 
 ---
 

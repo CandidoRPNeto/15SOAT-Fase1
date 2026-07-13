@@ -2,7 +2,7 @@
 
 namespace Database\Factories;
 
-use App\Enums\ServiceOrderStatus;
+use App\Domain\ServiceOrder\ServiceOrderStatus;
 use App\Models\ServiceOrder;
 use App\Models\User;
 use App\Models\Vehicle;

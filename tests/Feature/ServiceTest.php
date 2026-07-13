@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Item;
 use App\Models\Service;
+use App\Models\ServiceItem;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -124,7 +125,7 @@ class ServiceTest extends TestCase
     {
         $service = Service::factory()->create();
         $item = Item::factory()->create();
-        \App\Models\ServiceItem::create(['service_id' => $service->id, 'item_id' => $item->id, 'quantity' => 2]);
+        ServiceItem::create(['service_id' => $service->id, 'item_id' => $item->id, 'quantity' => 2]);
 
         $this->actingAs($this->mechanic)
             ->getJson("/api/v1/services/{$service->id}")

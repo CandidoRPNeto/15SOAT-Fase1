@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: workshop-os-config
+data:
+  APP_NAME: "Workshop OS"
+  APP_ENV: "production"
+  APP_DEBUG: "false"
+  APP_URL: "http://localhost:8000"
+  APP_LOCALE: "pt_BR"
+  APP_FALLBACK_LOCALE: "pt_BR"
+  LOG_CHANNEL: "stack"
+  LOG_LEVEL: "warning"
+  DB_CONNECTION: "pgsql"
+  # Nome do Service do Postgres (k8s/postgres.yaml) — resolvido via DNS interno do cluster.
+  DB_HOST: "workshop-os-postgres"
+  DB_PORT: "5432"
+  DB_DATABASE: "workshop_os"
+  DB_USERNAME: "postgres"
+  QUEUE_CONNECTION: "database"
+  CACHE_STORE: "database"
+  SESSION_DRIVER: "database"
+  L5_SWAGGER_GENERATE_ALWAYS: "false"
+  L5_SWAGGER_CONST_HOST: "http://localhost:8000"

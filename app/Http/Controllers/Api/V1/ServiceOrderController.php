@@ -2,9 +2,13 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Application\ServiceOrder\GetServiceOrderStatus;
+use App\Application\ServiceOrder\ListServiceOrders;
+use App\Application\ServiceOrder\OpenServiceOrder;
 use App\Contracts\MessagingServiceInterface;
 use App\Contracts\PaymentServiceInterface;
-use App\Enums\ServiceOrderStatus;
+use App\Domain\ServiceOrder\ServiceOrderPolicy;
+use App\Domain\ServiceOrder\ServiceOrderStatus;
 use App\Http\Requests\AddItemToOrderRequest;
 use App\Http\Requests\AddServiceToOrderRequest;
 use App\Http\Requests\StoreServiceOrderRequest;
@@ -17,6 +21,7 @@ use App\Models\ServiceOrderService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Pagination\LengthAwarePaginator;
 use OpenApi\Attributes as OA;
 
 #[OA\Tag(name: 'ServiceOrders', description: 'Ciclo de vida das Ordens de Serviço')]
@@ -25,6 +30,8 @@ class ServiceOrderController extends Controller
     public function __construct(
         private readonly MessagingServiceInterface $messaging,
         private readonly PaymentServiceInterface $payment,
+        private readonly OpenServiceOrder $openServiceOrder,
+        private readonly GetServiceOrderStatus $getServiceOrderStatus,
     ) {}
 
     #[OA\Get(
@@ -32,9 +39,12 @@ class ServiceOrderController extends Controller
         summary: 'Lista ordens de serviço',
         security: [['sanctum' => []]],
         tags: ['ServiceOrders'],
+        description: 'Sem o filtro `status`, exclui OS finalizadas/entregues e ordena por prioridade '
+            .'(Em Execução > Aguardando Aprovação > Diagnóstico > Recebida, mais antigas primeiro).',
         parameters: [
             new OA\Parameter(name: 'status', in: 'query', required: false, schema: new OA\Schema(type: 'string')),
             new OA\Parameter(name: 'client_id', in: 'query', required: false, schema: new OA\Schema(type: 'integer')),
+            new OA\Parameter(name: 'page', in: 'query', required: false, schema: new OA\Schema(type: 'integer')),
         ],
         responses: [new OA\Response(response: 200, description: 'Lista de OS')]
     )]
@@ -49,13 +59,27 @@ class ServiceOrderController extends Controller
 
         if ($request->filled('status')) {
             $query->where('status', $request->status);
+        } else {
+            $query->whereNotIn('status', ListServiceOrders::excludedStatuses());
         }
 
         if ($request->filled('client_id') && ! $user->isClient()) {
             $query->where('client_id', $request->client_id);
         }
 
-        return ServiceOrderResource::collection($query->latest()->paginate(15));
+        $orders = ListServiceOrders::sort($query->get());
+
+        $perPage = 15;
+        $page = LengthAwarePaginator::resolveCurrentPage();
+        $paginated = new LengthAwarePaginator(
+            $orders->forPage($page, $perPage)->values(),
+            $orders->count(),
+            $perPage,
+            $page,
+            ['path' => LengthAwarePaginator::resolveCurrentPath(), 'query' => $request->query()],
+        );
+
+        return ServiceOrderResource::collection($paginated);
     }
 
     #[OA\Post(
@@ -71,25 +95,42 @@ class ServiceOrderController extends Controller
                     new OA\Property(property: 'client_id', type: 'integer', example: 3),
                     new OA\Property(property: 'vehicle_id', type: 'integer', example: 1),
                     new OA\Property(property: 'notes', type: 'string'),
+                    new OA\Property(
+                        property: 'services',
+                        type: 'array',
+                        items: new OA\Items(
+                            properties: [
+                                new OA\Property(property: 'service_id', type: 'integer', example: 1),
+                                new OA\Property(property: 'quantity', type: 'integer', example: 1),
+                            ]
+                        )
+                    ),
+                    new OA\Property(
+                        property: 'items',
+                        type: 'array',
+                        items: new OA\Items(
+                            properties: [
+                                new OA\Property(property: 'item_id', type: 'integer', example: 1),
+                                new OA\Property(property: 'quantity', type: 'integer', example: 1),
+                            ]
+                        )
+                    ),
                 ]
             )
         ),
         responses: [
-            new OA\Response(response: 201, description: 'OS criada'),
+            new OA\Response(response: 201, description: 'OS criada, com identificação única e, se informados, serviços/itens já anexados'),
             new OA\Response(response: 422, description: 'Dados inválidos'),
         ]
     )]
     public function store(StoreServiceOrderRequest $request): JsonResponse
     {
-        $order = ServiceOrder::create([
-            ...$request->validated(),
-            'status' => ServiceOrderStatus::RECEIVED,
-        ]);
-        $order->load(['client', 'vehicle']);
+        $order = $this->openServiceOrder->execute($request->validated());
 
-        $this->messaging->notifyOrderCreated($order);
-
-        return response()->json(new ServiceOrderResource($order), 201);
+        return response()->json(
+            new ServiceOrderResource($order->load(['services', 'orderItems.item'])),
+            201
+        );
     }
 
     #[OA\Get(
@@ -114,6 +155,36 @@ class ServiceOrderController extends Controller
         }
 
         return response()->json(new ServiceOrderResource($order));
+    }
+
+    #[OA\Get(
+        path: '/api/v1/service-orders/{id}/status',
+        summary: 'Consulta apenas a situação atual da OS',
+        security: [['sanctum' => []]],
+        tags: ['ServiceOrders'],
+        parameters: [
+            new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Situação atual da OS'),
+            new OA\Response(response: 403, description: 'Acesso não autorizado'),
+            new OA\Response(response: 404, description: 'OS não encontrada'),
+        ]
+    )]
+    public function status(Request $request, int $id): JsonResponse
+    {
+        $order = $this->getServiceOrderStatus->execute($id);
+
+        if ($request->user()->isClient() && $order->client_id !== $request->user()->id) {
+            return response()->json(['message' => 'Acesso não autorizado.'], 403);
+        }
+
+        return response()->json([
+            'id' => $order->id,
+            'number' => $order->number,
+            'status' => $order->status->value,
+            'status_label' => $order->status->label(),
+        ]);
     }
 
     #[OA\Post(
@@ -143,7 +214,7 @@ class ServiceOrderController extends Controller
     {
         $order = ServiceOrder::findOrFail($id);
 
-        if (! in_array($order->status, [ServiceOrderStatus::RECEIVED, ServiceOrderStatus::IN_DIAGNOSIS])) {
+        if (! ServiceOrderPolicy::canModifyItems($order->status)) {
             return response()->json(['message' => 'Serviços só podem ser adicionados nos status Recebida ou Em diagnóstico.'], 422);
         }
 
@@ -207,7 +278,7 @@ class ServiceOrderController extends Controller
     {
         $order = ServiceOrder::findOrFail($id);
 
-        if (! in_array($order->status, [ServiceOrderStatus::RECEIVED, ServiceOrderStatus::IN_DIAGNOSIS])) {
+        if (! ServiceOrderPolicy::canModifyItems($order->status)) {
             return response()->json(['message' => 'Itens só podem ser adicionados nos status Recebida ou Em diagnóstico.'], 422);
         }
 
@@ -254,7 +325,7 @@ class ServiceOrderController extends Controller
     {
         $order = ServiceOrder::findOrFail($id);
 
-        if (! in_array($order->status, [ServiceOrderStatus::RECEIVED, ServiceOrderStatus::IN_DIAGNOSIS])) {
+        if (! ServiceOrderPolicy::canModifyItems($order->status)) {
             return response()->json(['message' => 'Itens só podem ser removidos nos status Recebida ou Em diagnóstico.'], 422);
         }
 
@@ -286,7 +357,7 @@ class ServiceOrderController extends Controller
     {
         $order = ServiceOrder::with(['client', 'vehicle', 'orderServices', 'orderItems'])->findOrFail($id);
 
-        if ($order->status !== ServiceOrderStatus::IN_DIAGNOSIS) {
+        if (! ServiceOrderPolicy::canGenerateBudget($order->status)) {
             return response()->json(['message' => 'A OS deve estar Em diagnóstico para gerar o orçamento.'], 422);
         }
 
@@ -325,7 +396,7 @@ class ServiceOrderController extends Controller
             return response()->json(['message' => 'Acesso não autorizado.'], 403);
         }
 
-        if ($order->status !== ServiceOrderStatus::AWAITING_APPROVAL) {
+        if (! ServiceOrderPolicy::canApprove($order->status)) {
             return response()->json(['message' => 'A OS deve estar Aguardando aprovação para ser aprovada.'], 422);
         }
 
@@ -355,7 +426,7 @@ class ServiceOrderController extends Controller
             return response()->json(['message' => 'Acesso não autorizado.'], 403);
         }
 
-        if ($order->status !== ServiceOrderStatus::AWAITING_APPROVAL) {
+        if (! ServiceOrderPolicy::canCancel($order->status)) {
             return response()->json(['message' => 'A OS deve estar Aguardando aprovação para ser cancelada.'], 422);
         }
 
@@ -381,7 +452,7 @@ class ServiceOrderController extends Controller
     {
         $order = ServiceOrder::findOrFail($id);
 
-        if ($order->status !== ServiceOrderStatus::APPROVED) {
+        if (! ServiceOrderPolicy::canStartExecution($order->status)) {
             return response()->json(['message' => 'A OS deve estar Aprovada para iniciar a execução.'], 422);
         }
 
@@ -407,7 +478,7 @@ class ServiceOrderController extends Controller
     {
         $order = ServiceOrder::with(['client', 'vehicle'])->findOrFail($id);
 
-        if ($order->status !== ServiceOrderStatus::IN_EXECUTION) {
+        if (! ServiceOrderPolicy::canFinalize($order->status)) {
             return response()->json(['message' => 'A OS deve estar Em execução para ser finalizada.'], 422);
         }
 
@@ -442,7 +513,7 @@ class ServiceOrderController extends Controller
             return response()->json(['message' => 'Acesso não autorizado.'], 403);
         }
 
-        if ($order->status !== ServiceOrderStatus::FINALIZED) {
+        if (! ServiceOrderPolicy::canPay($order->status)) {
             return response()->json(['message' => 'A OS deve estar Finalizada para efetuar o pagamento.'], 422);
         }
 

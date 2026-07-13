@@ -34,7 +34,7 @@ class ServiceOrderModelTest extends TestCase
 
     public function test_is_paid_returns_false_when_null(): void
     {
-        $order = new ServiceOrder();
+        $order = new ServiceOrder;
         $order->paid_at = null;
         $this->assertFalse($order->isPaid());
     }
@@ -54,7 +54,7 @@ class ServiceOrderModelTest extends TestCase
 
     public function test_is_finalized(): void
     {
-        $order = new ServiceOrder();
+        $order = new ServiceOrder;
         $order->setRawAttributes(['status' => 'finalized']);
         $this->assertTrue($order->isFinalized());
 
@@ -84,7 +84,7 @@ class ServiceOrderModelTest extends TestCase
         $svc2 = new ServiceOrderService(['unit_price' => '50.00', 'quantity' => 1]);
         $itm1 = new ServiceOrderItem(['unit_price' => '30.00', 'quantity' => 3]);
 
-        $order = new ServiceOrder();
+        $order = new ServiceOrder;
         $order->setRelation('orderServices', new Collection([$svc1, $svc2]));
         $order->setRelation('orderItems', new Collection([$itm1]));
 
@@ -94,7 +94,7 @@ class ServiceOrderModelTest extends TestCase
 
     public function test_hours_since_finalized_returns_null_if_not_finalized(): void
     {
-        $order = new ServiceOrder();
+        $order = new ServiceOrder;
         $order->setRawAttributes(['finalized_at' => null]);
         $this->assertNull($order->hoursSinceFinalized());
     }

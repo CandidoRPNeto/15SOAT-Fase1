@@ -38,7 +38,7 @@ class ClientController extends Controller
         }
 
         if ($request->filled('name')) {
-            $query->whereRaw('LOWER(name) LIKE ?', ['%' . strtolower($request->name) . '%']);
+            $query->whereRaw('LOWER(name) LIKE ?', ['%'.strtolower($request->name).'%']);
         }
 
         return UserResource::collection($query->paginate(15));

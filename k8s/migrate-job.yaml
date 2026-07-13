@@ -1,0 +1,25 @@
+# Job separado do Deployment principal de propósito: o CMD da imagem
+# (ver Dockerfile) roda `migrate:fresh --seed` a cada boot, o que é
+# conveniente no docker-compose de um único container, mas destrutivo em
+# Kubernetes — cada novo Pod criado pelo HPA reexecutaria migrate:fresh e
+# apagaria o banco. Este Job roda a migração (idempotente, sem --fresh) uma
+# única vez; o Deployment sobrescreve o command para apenas servir a API.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: workshop-os-migrate
+spec:
+  backoffLimit: 2
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: migrate
+          image: workshop-os-app:latest
+          imagePullPolicy: IfNotPresent
+          command: ["php", "artisan", "migrate", "--seed", "--force"]
+          envFrom:
+            - configMapRef:
+                name: workshop-os-config
+            - secretRef:
+                name: workshop-os-secret

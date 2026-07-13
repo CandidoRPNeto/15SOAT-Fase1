@@ -2,8 +2,8 @@
 
 namespace Database\Seeders;
 
+use App\Domain\ServiceOrder\ServiceOrderStatus;
 use App\Enums\ItemType;
-use App\Enums\ServiceOrderStatus;
 use App\Enums\UserRole;
 use App\Models\Item;
 use App\Models\Service;
@@ -82,11 +82,11 @@ class DatabaseSeeder extends Seeder
 
         $vehicles = collect($vehiclesRaw)->map(fn ($d) => Vehicle::create([
             'client_id' => $d[5],
-            'brand'     => $d[0],
-            'model'     => $d[1],
-            'plate'     => $d[2],
-            'year'      => $d[3],
-            'color'     => $d[4],
+            'brand' => $d[0],
+            'model' => $d[1],
+            'plate' => $d[2],
+            'year' => $d[3],
+            'color' => $d[4],
         ]));
 
         // ---------------------------------------------------------------
@@ -111,13 +111,13 @@ class DatabaseSeeder extends Seeder
         ];
 
         $items = collect($itemsRaw)->map(fn ($p) => Item::create([
-            'name'           => $p[0],
-            'part_number'    => $p[1],
-            'price'          => $p[2],
+            'name' => $p[0],
+            'part_number' => $p[1],
+            'price' => $p[2],
             'stock_quantity' => $p[3],
-            'type'           => $p[4],
-            'description'    => 'Item original de reposição',
-            'active'         => true,
+            'type' => $p[4],
+            'description' => 'Item original de reposição',
+            'active' => true,
         ]));
 
         // ---------------------------------------------------------------
@@ -137,11 +137,11 @@ class DatabaseSeeder extends Seeder
         ];
 
         $services = collect($servicesRaw)->map(fn ($s) => Service::create([
-            'name'                  => $s[0],
-            'price'                 => $s[1],
+            'name' => $s[0],
+            'price' => $s[1],
             'avg_execution_minutes' => $s[2],
-            'description'           => $s[3],
-            'active'                => true,
+            'description' => $s[3],
+            'active' => true,
         ]));
 
         // Itens necessários por serviço: [service_index => [[item_index, qty], ...]]
@@ -162,8 +162,8 @@ class DatabaseSeeder extends Seeder
             foreach ($itemPairs as [$item, $qty]) {
                 ServiceItem::create([
                     'service_id' => $services[$serviceIdx]->id,
-                    'item_id'    => $item->id,
-                    'quantity'   => $qty,
+                    'item_id' => $item->id,
+                    'quantity' => $qty,
                 ]);
             }
         }
@@ -174,27 +174,27 @@ class DatabaseSeeder extends Seeder
 
         // 1. received
         ServiceOrder::create([
-            'client_id'  => $clients[0]->id,
+            'client_id' => $clients[0]->id,
             'vehicle_id' => $vehicles[0]->id,
-            'status'     => ServiceOrderStatus::RECEIVED,
-            'notes'      => 'Cliente relatou barulho no motor ao ligar a frio.',
+            'status' => ServiceOrderStatus::RECEIVED,
+            'notes' => 'Cliente relatou barulho no motor ao ligar a frio.',
         ]);
 
         // 2. in_diagnosis
         ServiceOrder::create([
-            'client_id'  => $clients[0]->id,
+            'client_id' => $clients[0]->id,
             'vehicle_id' => $vehicles[1]->id,
-            'status'     => ServiceOrderStatus::IN_DIAGNOSIS,
-            'notes'      => 'Freios rangendo ao frear em baixa velocidade.',
+            'status' => ServiceOrderStatus::IN_DIAGNOSIS,
+            'notes' => 'Freios rangendo ao frear em baixa velocidade.',
         ]);
 
         // 3. awaiting_approval
         $os3 = ServiceOrder::create([
-            'client_id'       => $clients[1]->id,
-            'vehicle_id'      => $vehicles[2]->id,
-            'status'          => ServiceOrderStatus::AWAITING_APPROVAL,
-            'notes'           => 'Revisão dos 50.000 km conforme manual.',
-            'budget_sent_at'  => now()->subHours(3),
+            'client_id' => $clients[1]->id,
+            'vehicle_id' => $vehicles[2]->id,
+            'status' => ServiceOrderStatus::AWAITING_APPROVAL,
+            'notes' => 'Revisão dos 50.000 km conforme manual.',
+            'budget_sent_at' => now()->subHours(3),
         ]);
         $this->addService($os3, $services[3], 1);
         $this->addService($os3, $services[0], 1);
@@ -205,10 +205,10 @@ class DatabaseSeeder extends Seeder
 
         // 4. approved
         $os4 = ServiceOrder::create([
-            'client_id'      => $clients[1]->id,
-            'vehicle_id'     => $vehicles[3]->id,
-            'status'         => ServiceOrderStatus::APPROVED,
-            'notes'          => 'Troca de correia dentada aprovada pelo cliente.',
+            'client_id' => $clients[1]->id,
+            'vehicle_id' => $vehicles[3]->id,
+            'status' => ServiceOrderStatus::APPROVED,
+            'notes' => 'Troca de correia dentada aprovada pelo cliente.',
             'budget_sent_at' => now()->subDay(),
         ]);
         $this->addService($os4, $services[6], 1);
@@ -219,10 +219,10 @@ class DatabaseSeeder extends Seeder
 
         // 5. cancelled
         $os5 = ServiceOrder::create([
-            'client_id'      => $clients[2]->id,
-            'vehicle_id'     => $vehicles[4]->id,
-            'status'         => ServiceOrderStatus::CANCELLED,
-            'notes'          => 'Cliente cancelou após receber o orçamento.',
+            'client_id' => $clients[2]->id,
+            'vehicle_id' => $vehicles[4]->id,
+            'status' => ServiceOrderStatus::CANCELLED,
+            'notes' => 'Cliente cancelou após receber o orçamento.',
             'budget_sent_at' => now()->subDays(2),
         ]);
         $this->addService($os5, $services[1], 1);
@@ -231,10 +231,10 @@ class DatabaseSeeder extends Seeder
 
         // 6. in_execution
         $os6 = ServiceOrder::create([
-            'client_id'      => $clients[2]->id,
-            'vehicle_id'     => $vehicles[5]->id,
-            'status'         => ServiceOrderStatus::IN_EXECUTION,
-            'notes'          => 'Troca de pastilhas e discos em execução.',
+            'client_id' => $clients[2]->id,
+            'vehicle_id' => $vehicles[5]->id,
+            'status' => ServiceOrderStatus::IN_EXECUTION,
+            'notes' => 'Troca de pastilhas e discos em execução.',
             'budget_sent_at' => now()->subDay(),
         ]);
         $this->addService($os6, $services[4], 1);
@@ -245,12 +245,12 @@ class DatabaseSeeder extends Seeder
 
         // 7. finalized (aguardando pagamento)
         $os7 = ServiceOrder::create([
-            'client_id'      => $clients[0]->id,
-            'vehicle_id'     => $vehicles[0]->id,
-            'status'         => ServiceOrderStatus::FINALIZED,
-            'notes'          => 'Serviço concluído. Aguardando retirada e pagamento.',
+            'client_id' => $clients[0]->id,
+            'vehicle_id' => $vehicles[0]->id,
+            'status' => ServiceOrderStatus::FINALIZED,
+            'notes' => 'Serviço concluído. Aguardando retirada e pagamento.',
             'budget_sent_at' => now()->subDays(3),
-            'finalized_at'   => now()->subHours(2),
+            'finalized_at' => now()->subHours(2),
         ]);
         $this->addService($os7, $services[5], 1);
         $this->addService($os7, $services[8], 1);
@@ -259,14 +259,14 @@ class DatabaseSeeder extends Seeder
 
         // 8. delivered
         $os8 = ServiceOrder::create([
-            'client_id'      => $clients[1]->id,
-            'vehicle_id'     => $vehicles[2]->id,
-            'status'         => ServiceOrderStatus::DELIVERED,
-            'notes'          => 'Veículo entregue ao cliente após pagamento.',
+            'client_id' => $clients[1]->id,
+            'vehicle_id' => $vehicles[2]->id,
+            'status' => ServiceOrderStatus::DELIVERED,
+            'notes' => 'Veículo entregue ao cliente após pagamento.',
             'budget_sent_at' => now()->subDays(5),
-            'finalized_at'   => now()->subDays(1),
-            'paid_at'        => now()->subHours(4),
-            'delivered_at'   => now()->subHours(3),
+            'finalized_at' => now()->subDays(1),
+            'paid_at' => now()->subHours(4),
+            'delivered_at' => now()->subHours(3),
         ]);
         $this->addService($os8, $services[0], 1);
         $this->addService($os8, $services[9], 1);
@@ -280,9 +280,9 @@ class DatabaseSeeder extends Seeder
     {
         ServiceOrderService::create([
             'service_order_id' => $order->id,
-            'service_id'       => $service->id,
-            'quantity'         => $qty,
-            'unit_price'       => $service->price,
+            'service_id' => $service->id,
+            'quantity' => $qty,
+            'unit_price' => $service->price,
         ]);
     }
 
@@ -290,9 +290,9 @@ class DatabaseSeeder extends Seeder
     {
         ServiceOrderItem::create([
             'service_order_id' => $order->id,
-            'item_id'          => $item->id,
-            'quantity'         => $qty,
-            'unit_price'       => $item->price,
+            'item_id' => $item->id,
+            'quantity' => $qty,
+            'unit_price' => $item->price,
         ]);
     }
 }

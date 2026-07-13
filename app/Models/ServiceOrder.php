@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use App\Enums\ServiceOrderStatus;
+use App\Domain\ServiceOrder\ServiceOrderStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -51,6 +51,7 @@ class ServiceOrder extends Model
     {
         $year = now()->format('Y');
         $last = static::whereYear('created_at', $year)->count();
+
         return sprintf('OS-%s-%05d', $year, $last + 1);
     }
 

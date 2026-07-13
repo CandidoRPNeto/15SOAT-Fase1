@@ -45,6 +45,7 @@ Route::prefix('v1')->group(function () {
         Route::prefix('service-orders')->group(function () {
             // Listagem e detalhe — todos os perfis autenticados
             Route::get('/', [ServiceOrderController::class, 'index']);
+            Route::get('/{id}/status', [ServiceOrderController::class, 'status']);
             Route::get('/{id}', [ServiceOrderController::class, 'show']);
 
             // Criação — receptionist e mechanic

@@ -3,7 +3,7 @@
 namespace App\Jobs;
 
 use App\Contracts\MessagingServiceInterface;
-use App\Enums\ServiceOrderStatus;
+use App\Domain\ServiceOrder\ServiceOrderStatus;
 use App\Models\ServiceOrder;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;

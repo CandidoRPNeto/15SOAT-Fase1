@@ -1,0 +1,53 @@
+# O CMD da imagem (ver Dockerfile) roda `migrate:fresh --seed` a cada boot —
+# adequado ao docker-compose de container único, mas destrutivo aqui: com o
+# HPA escalando réplicas, cada novo Pod apagaria o banco. O command abaixo
+# sobrescreve o CMD para apenas cachear config, gerar o Swagger e servir a
+# API; a migração roda uma única vez via k8s/migrate-job.yaml.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: workshop-os-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: workshop-os-app
+  template:
+    metadata:
+      labels:
+        app: workshop-os-app
+    spec:
+      containers:
+        - name: app
+          image: workshop-os-app:latest
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - php artisan config:cache && php artisan l5-swagger:generate && php artisan serve --host=0.0.0.0 --port=8000
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: workshop-os-config
+            - secretRef:
+                name: workshop-os-secret
+          readinessProbe:
+            httpGet:
+              path: /up
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /up
+              port: 8000
+            initialDelaySeconds: 20
+            periodSeconds: 15
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"

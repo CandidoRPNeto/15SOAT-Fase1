@@ -19,6 +19,12 @@ services:
       CACHE_STORE: database
       L5_SWAGGER_GENERATE_ALWAYS: "false"
       L5_SWAGGER_CONST_HOST: "http://localhost:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/up"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     networks:
       - workshop
 

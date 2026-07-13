@@ -39,7 +39,7 @@ class SendFineNotificationJobTest extends TestCase
             ->once()
             ->with(Mockery::on(fn ($o) => $o->id === $overdueOrder->id));
 
-        $job = new SendFineNotificationJob();
+        $job = new SendFineNotificationJob;
         $job->handle($messaging);
     }
 
@@ -58,7 +58,7 @@ class SendFineNotificationJobTest extends TestCase
         $messaging = Mockery::mock(MessagingServiceInterface::class);
         $messaging->shouldReceive('notifyPickupOverdue')->never();
 
-        $job = new SendFineNotificationJob();
+        $job = new SendFineNotificationJob;
         $job->handle($messaging);
     }
 }

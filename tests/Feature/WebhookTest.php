@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Enums\ServiceOrderStatus;
+use App\Domain\ServiceOrder\ServiceOrderStatus;
 use App\Models\ServiceOrder;
 use App\Models\User;
 use App\Models\Vehicle;
@@ -72,5 +72,74 @@ class WebhookTest extends TestCase
         $this->postJson('/webhook/messaging')
             ->assertOk()
             ->assertJsonPath('total', 0);
+    }
+
+    public function test_webhook_approves_budget(): void
+    {
+        $client = User::factory()->client()->create();
+        $vehicle = Vehicle::factory()->create(['client_id' => $client->id]);
+        $order = ServiceOrder::factory()->awaitingApproval()->create([
+            'client_id' => $client->id,
+            'vehicle_id' => $vehicle->id,
+        ]);
+
+        $this->postJson('/webhook/messaging', [
+            'event' => 'budget_approved',
+            'order_number' => $order->number,
+        ])
+            ->assertOk()
+            ->assertJsonPath('order.status', 'approved');
+
+        $this->assertDatabaseHas('service_orders', ['id' => $order->id, 'status' => 'approved']);
+    }
+
+    public function test_webhook_rejects_budget(): void
+    {
+        $client = User::factory()->client()->create();
+        $vehicle = Vehicle::factory()->create(['client_id' => $client->id]);
+        $order = ServiceOrder::factory()->awaitingApproval()->create([
+            'client_id' => $client->id,
+            'vehicle_id' => $vehicle->id,
+        ]);
+
+        $this->postJson('/webhook/messaging', [
+            'event' => 'budget_rejected',
+            'order_number' => $order->number,
+        ])
+            ->assertOk()
+            ->assertJsonPath('order.status', 'cancelled');
+
+        $this->assertDatabaseHas('service_orders', ['id' => $order->id, 'status' => 'cancelled']);
+    }
+
+    public function test_webhook_budget_decision_fails_for_unknown_order(): void
+    {
+        $this->postJson('/webhook/messaging', [
+            'event' => 'budget_approved',
+            'order_number' => 'OS-0000-99999',
+        ])->assertNotFound();
+    }
+
+    public function test_webhook_budget_decision_fails_for_invalid_status(): void
+    {
+        $client = User::factory()->client()->create();
+        $vehicle = Vehicle::factory()->create(['client_id' => $client->id]);
+        $order = ServiceOrder::factory()->received()->create([
+            'client_id' => $client->id,
+            'vehicle_id' => $vehicle->id,
+        ]);
+
+        $this->postJson('/webhook/messaging', [
+            'event' => 'budget_approved',
+            'order_number' => $order->number,
+        ])->assertUnprocessable();
+    }
+
+    public function test_webhook_rejects_invalid_event(): void
+    {
+        $this->postJson('/webhook/messaging', [
+            'event' => 'something_else',
+            'order_number' => 'OS-2026-00001',
+        ])->assertUnprocessable();
     }
 }
