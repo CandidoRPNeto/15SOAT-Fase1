@@ -21,7 +21,7 @@ jobs:
         with:
           php-version: "8.4"
           extensions: pdo, pdo_sqlite, pdo_pgsql, mbstring, xml, bcmath, zip
-          coverage: none
+          coverage: xdebug
           tools: composer
 
       - name: Setup Node
@@ -44,9 +44,22 @@ jobs:
           php artisan key:generate
 
       # Testes rodam em SQLite :memory: (ver phpunit.xml) — não precisa de
-      # serviço de banco no CI.
-      - name: Run test suite
-        run: php artisan test --no-coverage
+      # serviço de banco no CI. --min=80 falha o build se a cobertura cair
+      # abaixo disso (cobertura atual: ~88%, ver coverage-report no artifact).
+      - name: Run test suite with coverage
+        env:
+          XDEBUG_MODE: coverage
+        run: php artisan test --coverage --min=80 --coverage-clover=coverage.xml --coverage-html=coverage-html
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: |
+            coverage.xml
+            coverage-html/
+          retention-days: 14
 
   # ---- Stage 3: build + push da imagem Docker ----
   docker-build:
