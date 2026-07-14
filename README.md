@@ -192,6 +192,57 @@ Recursos criados por cada módulo, ordem de `destroy` e pré-requisitos em
 
 ---
 
+## Teste de carga e escalabilidade automática
+
+Dois scripts em [`scripts/`](scripts/) simulam consumo real da API contra o
+cluster Kubernetes (NodePort `:30080`), para observar o HPA (`k8s/hpa.yaml`)
+escalando de 2 para até 6 réplicas sob carga e voltando ao normal depois.
+
+### `scripts/load-test.sh` — carga simples e sustentada
+
+Login como recepcionista + criação de OS em loop via [`hey`](https://github.com/rakyll/hey):
+
+```bash
+./scripts/load-test.sh http://127.0.0.1:30080 50 90s   # BASE_URL, concorrência, duração
+```
+
+Em outro terminal, acompanhe o scaling: `kubectl get hpa workshop-os-app -w`.
+
+### `scripts/route-load-test.js` — carga distribuída pelas 39 rotas
+
+Chama todas as rotas GET/POST/PUT/DELETE da API (autenticando nos 3 perfis) em
+três intensidades:
+
+| Tier      | GET (listagem / detalhe) | POST | PUT  | DELETE | Uso                                    |
+|-----------|---------------------------|------|------|--------|-----------------------------------------|
+| `light`   | 10x / 8x                  | 6x   | 4x   | 1x     | Smoke test — cobre cada rota poucas vezes |
+| `heavy`   | 1000x / 800x              | 600x | 400x | 50x    | Carga pesada — já satura o HPA no teto (testado: 2→6 réplicas em ~1 min) |
+| `extreme` | 10000x / 8000x            | 6000x| 4000x| 500x   | Estresse — mostra até onde o sistema aguenta (script para no orçamento de tempo, não precisa completar tudo) |
+
+```bash
+BASE_URL=http://127.0.0.1:30080 node scripts/route-load-test.js light    # ou heavy / extreme
+# concorrência e orçamento de tempo (segundos) são opcionais:
+BASE_URL=http://127.0.0.1:30080 node scripts/route-load-test.js heavy 30 90
+```
+
+> Use `127.0.0.1`, não `localhost` — o Node resolve `localhost` para `::1`
+> (IPv6) primeiro, e o kind só expõe a porta em IPv4.
+
+Ao final, imprime um resumo por rota (tentativas, `2xx`/`4xx`/`5xx`, latência
+média). Duas notas sobre os resultados:
+
+- As 7 rotas de transição de status da OS (`generate-budget`, `approve`,
+  `cancel`, `start-execution`, `finalize`, `pay`, `deliver`) retornam `422`
+  após a 1ª tentativa por OS — a API não expõe uma rota para mover uma OS
+  recém-criada para "em diagnóstico" (pré-requisito de `generate-budget`), e
+  a regra de negócio corretamente rejeita pular etapas do fluxo. Isso ainda é
+  requisição HTTP real (auth, banco, JSON), válida para o teste de carga.
+- Sob concorrência real, `ServiceOrder::generateNumber()` (conta registros do
+  ano para montar `OS-AAAA-NNNNN`) pode gerar colisão e retornar `500` — uma
+  race condition conhecida, exposta justamente pelo teste de carga.
+
+---
+
 ## Credenciais de demo
 
 | Perfil        | E-mail                | Senha    | Pode fazer                                                               |
