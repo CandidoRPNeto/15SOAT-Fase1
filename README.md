@@ -37,40 +37,29 @@ unidades, mais volume de OS em horários de pico — sem perder qualidade:
 - **Containerização, Kubernetes, Terraform e CI/CD** para suportar
   escalabilidade dinâmica e deploy automatizado.
 
-Detalhes completos da decisão de arquitetura foram registrados em
-`docs/specs/fase2/plan.md` durante o desenvolvimento — arquivo local,
-excluído propositalmente via `.gitignore` por ser planejamento interno, não
-material da disciplina.
-
 ### Componentes da aplicação
 
 ```
 app/
-├── Domain/          # Regras de negócio puras, sem framework
-│   └── ServiceOrder/       # ServiceOrderStatus, ServiceOrderPolicy
-├── Application/      # Casos de uso (orquestração) + Ports
-│   ├── ServiceOrder/       # OpenServiceOrder, GetServiceOrderStatus,
-│   │                       # ApproveBudget, ListServiceOrders
-│   └── Ports/               # ServiceOrderRepository (interface)
-├── Infrastructure/   # Adapters do Domain/Application
-│   ├── Persistence/Eloquent/   # EloquentServiceOrderRepository
-│   └── Messaging/               # StubEmailStatusUpdateService
-├── Contracts/         # PaymentServiceInterface, MessagingServiceInterface,
-│                       # EmailStatusUpdateServiceInterface
-├── Enums/              # UserRole, ItemType (insumo/peca)
+├── Domain/
+│   └── ServiceOrder/
+├── Application/
+│   ├── ServiceOrder/
+│   └── Ports/
+├── Infrastructure/
+│   ├── Persistence/Eloquent/
+│   └── Messaging/
+├── Contracts/
+├── Enums/ 
 ├── Http/
-│   ├── Controllers/Api/V1/   # AuthController, ClientController, VehicleController,
-│   │                         # ServiceController, ItemController, ServiceOrderController,
-│   │                         # WebhookController (com anotações @OA)
-│   ├── Middleware/     # EnsureRole — verifica UserRole no token Sanctum
-│   ├── Requests/       # StoreXxx (POST, required) / UpdateXxx (PUT, sometimes)
-│   └── Resources/      # Transformadores de resposta JSON
-├── Jobs/               # SendFineNotificationJob (dispara alerta de atraso)
-├── Models/             # Eloquent (adapters de persistência): User, Vehicle,
-│                       # Service, Item, ServiceItem, ServiceOrder,
-│                       # ServiceOrderService, ServiceOrderItem
-├── Providers/          # AppServiceProvider (bind stubs/repositórios às interfaces)
-└── Services/           # StubPaymentService, StubMessagingService
+│   ├── Controllers/Api/V1/
+│   ├── Middleware/
+│   ├── Requests/
+│   └── Resources/
+├── Jobs/
+├── Models/
+├── Providers/ 
+└── Services/
 ```
 
 Regra de dependência: `Domain` não conhece Laravel/Eloquent; `Application`
@@ -199,9 +188,7 @@ Recursos criados por cada módulo, ordem de `destroy` e pré-requisitos em
   — inclui as APIs alteradas/criadas na Fase 2 (consulta de status, decisão
   de orçamento via webhook, abertura de OS com serviços/itens no payload).
 - **Swagger/OpenAPI**: com a aplicação rodando, acesse
-  **http://localhost:8000/api/documentation** (spec gerada em
-  `storage/api-docs/api-docs.json`, regenerável com
-  `php artisan l5-swagger:generate`).
+  **http://localhost:8000/api/documentation**.
 
 ---
 
@@ -219,7 +206,7 @@ Recursos criados por cada módulo, ordem de `destroy` e pré-requisitos em
 
 ```
 received → in_diagnosis → awaiting_approval → approved → in_execution → finalized → delivered
-                                           └──────────→ cancelled
+                                           └→ cancelled
 ```
 
 Notificações automáticas são disparadas na criação e nas transições de orçamento gerado, finalização e atraso na retirada (job horário).
