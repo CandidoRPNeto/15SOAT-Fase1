@@ -31,7 +31,7 @@ if (!(TIER in MULT)) {
 }
 
 const DEFAULT_CONCURRENCY = { light: 5, heavy: 30, extreme: 60 };
-const DEFAULT_BUDGET_S = { light: 60, heavy: 90, extreme: 150 };
+const DEFAULT_BUDGET_S = { light: 60, heavy: 150, extreme: 240 };
 
 const CONCURRENCY = parseInt(process.argv[3], 10) || DEFAULT_CONCURRENCY[TIER];
 const TIME_BUDGET_MS = (parseInt(process.argv[4], 10) || DEFAULT_BUDGET_S[TIER]) * 1000;
@@ -113,6 +113,19 @@ async function pool(concurrency, items, worker) {
   await Promise.all(workers);
 }
 
+// Intercala N chamadas de várias rotas independentes num único pool, em vez
+// de rodar rota por rota sequencialmente. Se o orçamento de tempo acabar no
+// meio, TODAS as rotas do grupo já tiveram alguma execução (round-robin),
+// em vez de zerar as últimas da lista — importante quando uma rota é bem
+// mais lenta que as outras (ex.: criar cliente faz hash de senha).
+async function interleave(concurrency, count, workers) {
+  const tasks = [];
+  for (let i = 0; i < count; i++) {
+    for (const worker of workers) tasks.push(() => worker(i));
+  }
+  await pool(concurrency, tasks, (task) => task());
+}
+
 async function login(email) {
   const { json } = await call('POST /auth/login', 'POST', '/api/v1/auth/login', {
     body: { email, password: 'password' },
@@ -166,47 +179,45 @@ async function main() {
   const itemIds = [];
   const orderIds = [];
 
-  await pool(CONCURRENCY, range(POST_N), async (_, i) => {
-    const s = suf(i);
-    const { json } = await call('POST /clients', 'POST', '/api/v1/clients', {
-      token: recepToken,
-      body: { name: `Load Client ${s}`, email: `load-client-${s}@example.com`, password: 'password', cpf_cnpj: `LT${i}-${Date.now() % 100000}` },
-    });
-    if (json?.id) clientIds.push(json.id);
-  });
-
-  await pool(CONCURRENCY, range(POST_N), async (_, i) => {
-    const { json } = await call('POST /vehicles', 'POST', '/api/v1/vehicles', {
-      token: recepToken,
-      body: { client_id: refClientId, plate: `LT${i}${Date.now() % 100000}`, brand: 'LoadBrand', model: 'LoadModel', year: 2024 },
-    });
-    if (json?.id) vehicleIds.push(json.id);
-  });
-
-  await pool(CONCURRENCY, range(POST_N), async (_, i) => {
-    const { json } = await call('POST /services', 'POST', '/api/v1/services', {
-      token: recepToken,
-      body: { name: `Load Service ${suf(i)}`, price: 10 + (i % 50) },
-    });
-    if (json?.id) serviceIds.push(json.id);
-  });
-
-  await pool(CONCURRENCY, range(POST_N), async (_, i) => {
-    const s = suf(i);
-    const { json } = await call('POST /items', 'POST', '/api/v1/items', {
-      token: recepToken,
-      body: { name: `Load Item ${s}`, part_number: `LT-${s}`, price: 5 + (i % 20), stock_quantity: 100, type: 'peca' },
-    });
-    if (json?.id) itemIds.push(json.id);
-  });
-
-  await pool(CONCURRENCY, range(POST_N), async (_, i) => {
-    const { json } = await call('POST /service-orders', 'POST', '/api/v1/service-orders', {
-      token: recepToken,
-      body: { client_id: refClientId, vehicle_id: refVehicleId, notes: `OS de carga ${suf(i)}` },
-    });
-    if (json?.id) orderIds.push(json.id);
-  });
+  await interleave(CONCURRENCY, POST_N, [
+    async (i) => {
+      const s = suf(i);
+      const { json } = await call('POST /clients', 'POST', '/api/v1/clients', {
+        token: recepToken,
+        body: { name: `Load Client ${s}`, email: `load-client-${s}@example.com`, password: 'password', cpf_cnpj: `LT${i}-${Date.now() % 100000}` },
+      });
+      if (json?.id) clientIds.push(json.id);
+    },
+    async (i) => {
+      const { json } = await call('POST /vehicles', 'POST', '/api/v1/vehicles', {
+        token: recepToken,
+        body: { client_id: refClientId, plate: `LT${i}${Date.now() % 100000}`, brand: 'LoadBrand', model: 'LoadModel', year: 2024 },
+      });
+      if (json?.id) vehicleIds.push(json.id);
+    },
+    async (i) => {
+      const { json } = await call('POST /services', 'POST', '/api/v1/services', {
+        token: recepToken,
+        body: { name: `Load Service ${suf(i)}`, price: 10 + (i % 50) },
+      });
+      if (json?.id) serviceIds.push(json.id);
+    },
+    async (i) => {
+      const s = suf(i);
+      const { json } = await call('POST /items', 'POST', '/api/v1/items', {
+        token: recepToken,
+        body: { name: `Load Item ${s}`, part_number: `LT-${s}`, price: 5 + (i % 20), stock_quantity: 100, type: 'peca' },
+      });
+      if (json?.id) itemIds.push(json.id);
+    },
+    async (i) => {
+      const { json } = await call('POST /service-orders', 'POST', '/api/v1/service-orders', {
+        token: recepToken,
+        body: { client_id: refClientId, vehicle_id: refVehicleId, notes: `OS de carga ${suf(i)}` },
+      });
+      if (json?.id) orderIds.push(json.id);
+    },
+  ]);
 
   console.log(`criados: clients=${clientIds.length} vehicles=${vehicleIds.length} services=${serviceIds.length} items=${itemIds.length} service-orders=${orderIds.length}\n`);
 
@@ -217,28 +228,30 @@ async function main() {
   // depois (via pick(orderIds, i)) não bate com o item realmente criado
   // naquele pedido.
   const itemAssocs = [];
-  await pool(CONCURRENCY, range(POST_N), async (_, i) => {
-    const orderId = pick(orderIds, i);
-    if (!orderId) return;
-    await call('POST /service-orders/{id}/services', 'POST', `/api/v1/service-orders/${orderId}/services`, {
-      token: mecToken,
-      body: { service_id: refServiceId, quantity: 1 },
-    });
-  });
   // reserva os últimos DEL_N itens fora do addItem — deletar um item já
   // vinculado a uma OS viola a FK de service_order_items (500, não 404/422)
   const addItemPool = itemIds.slice(0, Math.max(1, itemIds.length - DEL_N)) || itemIds;
-  await pool(CONCURRENCY, range(POST_N), async (_, i) => {
-    const orderId = pick(orderIds, i);
-    const itemId = pick(addItemPool, i) || addItemPool[0];
-    if (!orderId || !itemId) return;
-    const { json } = await call('POST /service-orders/{id}/items', 'POST', `/api/v1/service-orders/${orderId}/items`, {
-      token: mecToken,
-      body: { item_id: itemId, quantity: 1 },
-    });
-    const assocId = json?.items?.[0]?.id;
-    if (assocId) itemAssocs.push({ orderId, assocId });
-  });
+  await interleave(CONCURRENCY, POST_N, [
+    async (i) => {
+      const orderId = pick(orderIds, i);
+      if (!orderId) return;
+      await call('POST /service-orders/{id}/services', 'POST', `/api/v1/service-orders/${orderId}/services`, {
+        token: mecToken,
+        body: { service_id: refServiceId, quantity: 1 },
+      });
+    },
+    async (i) => {
+      const orderId = pick(orderIds, i);
+      const itemId = pick(addItemPool, i) || addItemPool[0];
+      if (!orderId || !itemId) return;
+      const { json } = await call('POST /service-orders/{id}/items', 'POST', `/api/v1/service-orders/${orderId}/items`, {
+        token: mecToken,
+        body: { item_id: itemId, quantity: 1 },
+      });
+      const assocId = json?.items?.[0]?.id;
+      if (assocId) itemAssocs.push({ orderId, assocId });
+    },
+  ]);
   console.log(`associações item-OS criadas para remoção posterior: ${itemAssocs.length}\n`);
 
   // ---- fase 3: transições de status (best-effort — ver nota no topo) ----
@@ -252,69 +265,69 @@ async function main() {
     ['POST /service-orders/{id}/pay', cliToken, (id) => `/api/v1/service-orders/${id}/pay`],
     ['POST /service-orders/{id}/deliver', recepToken, (id) => `/api/v1/service-orders/${id}/deliver`],
   ];
-  for (const [name, token, pathFn] of lifecycle) {
-    await pool(CONCURRENCY, range(POST_N), async (_, i) => {
-      const orderId = pick(orderIds, i);
-      if (!orderId) return;
-      await call(name, 'POST', pathFn(orderId), { token });
-    });
-  }
+  await interleave(CONCURRENCY, POST_N, lifecycle.map(([name, token, pathFn]) => async (i) => {
+    const orderId = pick(orderIds, i);
+    if (!orderId) return;
+    await call(name, 'POST', pathFn(orderId), { token });
+  }));
 
   // ---- fase 4: login/logout/webhook ----
   console.log(`--- fase 4/7: auth/login, auth/logout, webhook (POST ${POST_N}x cada) ---`);
-  await pool(CONCURRENCY, range(POST_N), async () => {
-    await login('recepcao@workshop.com'); // conta em 'POST /auth/login'
-  });
-  await pool(CONCURRENCY, range(POST_N), async () => {
-    const tok = await loginNoStat('mecanico@workshop.com');
-    if (tok) await call('POST /auth/logout', 'POST', '/api/v1/auth/logout', { token: tok });
-  });
-  await pool(CONCURRENCY, range(POST_N), async () => {
-    await call('POST /webhook/messaging', 'POST', '/webhook/messaging', {});
-  });
+  await interleave(CONCURRENCY, POST_N, [
+    async () => { await login('recepcao@workshop.com'); }, // conta em 'POST /auth/login'
+    async () => {
+      const tok = await loginNoStat('mecanico@workshop.com');
+      if (tok) await call('POST /auth/logout', 'POST', '/api/v1/auth/logout', { token: tok });
+    },
+    async () => { await call('POST /webhook/messaging', 'POST', '/webhook/messaging', {}); },
+  ]);
 
   // ---- fase 5: PUT ----
   console.log(`--- fase 5/7: updates (PUT ${PUT_N}x cada) ---`);
-  await pool(CONCURRENCY, range(PUT_N), async (_, i) => {
-    const id = pick(clientIds, i);
-    if (id) await call('PUT /clients/{id}', 'PUT', `/api/v1/clients/${id}`, { token: recepToken, body: { name: `Load Client Upd ${suf(i)}` } });
-  });
-  await pool(CONCURRENCY, range(PUT_N), async (_, i) => {
-    const id = pick(vehicleIds, i);
-    if (id) await call('PUT /vehicles/{id}', 'PUT', `/api/v1/vehicles/${id}`, { token: recepToken, body: { color: 'Load Color' } });
-  });
-  await pool(CONCURRENCY, range(PUT_N), async (_, i) => {
-    const id = pick(serviceIds, i);
-    if (id) await call('PUT /services/{id}', 'PUT', `/api/v1/services/${id}`, { token: recepToken, body: { price: 20 + (i % 30) } });
-  });
-  await pool(CONCURRENCY, range(PUT_N), async (_, i) => {
-    const id = pick(itemIds, i);
-    if (id) await call('PUT /items/{id}', 'PUT', `/api/v1/items/${id}`, { token: recepToken, body: { stock_quantity: 50 + (i % 10) } });
-  });
+  await interleave(CONCURRENCY, PUT_N, [
+    async (i) => {
+      const id = pick(clientIds, i);
+      if (id) await call('PUT /clients/{id}', 'PUT', `/api/v1/clients/${id}`, { token: recepToken, body: { name: `Load Client Upd ${suf(i)}` } });
+    },
+    async (i) => {
+      const id = pick(vehicleIds, i);
+      if (id) await call('PUT /vehicles/{id}', 'PUT', `/api/v1/vehicles/${id}`, { token: recepToken, body: { color: 'Load Color' } });
+    },
+    async (i) => {
+      const id = pick(serviceIds, i);
+      if (id) await call('PUT /services/{id}', 'PUT', `/api/v1/services/${id}`, { token: recepToken, body: { price: 20 + (i % 30) } });
+    },
+    async (i) => {
+      const id = pick(itemIds, i);
+      if (id) await call('PUT /items/{id}', 'PUT', `/api/v1/items/${id}`, { token: recepToken, body: { stock_quantity: 50 + (i % 10) } });
+    },
+  ]);
 
   // ---- fase 6: DELETE ----
   console.log(`--- fase 6/7: deletes (DELETE ${DEL_N}x cada) ---`);
-  await pool(CONCURRENCY, range(DEL_N), async (_, i) => {
-    const id = clientIds[i];
-    if (id) await call('DELETE /clients/{id}', 'DELETE', `/api/v1/clients/${id}`, { token: recepToken });
-  });
-  await pool(CONCURRENCY, range(DEL_N), async (_, i) => {
-    const id = vehicleIds[i];
-    if (id) await call('DELETE /vehicles/{id}', 'DELETE', `/api/v1/vehicles/${id}`, { token: recepToken });
-  });
-  await pool(CONCURRENCY, range(DEL_N), async (_, i) => {
-    const id = serviceIds[i];
-    if (id) await call('DELETE /services/{id}', 'DELETE', `/api/v1/services/${id}`, { token: recepToken });
-  });
   const deletableItemIds = itemIds.slice(-DEL_N); // os reservados fora do addItem
-  await pool(CONCURRENCY, range(DEL_N), async (_, i) => {
-    const id = deletableItemIds[i];
-    if (id) await call('DELETE /items/{id}', 'DELETE', `/api/v1/items/${id}`, { token: recepToken });
-  });
-  await pool(CONCURRENCY, range(DEL_N), async (_, i) => {
-    const pair = itemAssocs[i];
-    if (pair) await call('DELETE /service-orders/{id}/items/{itemId}', 'DELETE', `/api/v1/service-orders/${pair.orderId}/items/${pair.assocId}`, { token: mecToken });
-  });
+  await interleave(CONCURRENCY, DEL_N, [
+    async (i) => {
+      const id = clientIds[i];
+      if (id) await call('DELETE /clients/{id}', 'DELETE', `/api/v1/clients/${id}`, { token: recepToken });
+    },
+    async (i) => {
+      const id = vehicleIds[i];
+      if (id) await call('DELETE /vehicles/{id}', 'DELETE', `/api/v1/vehicles/${id}`, { token: recepToken });
+    },
+    async (i) => {
+      const id = serviceIds[i];
+      if (id) await call('DELETE /services/{id}', 'DELETE', `/api/v1/services/${id}`, { token: recepToken });
+    },
+    async (i) => {
+      const id = deletableItemIds[i];
+      if (id) await call('DELETE /items/{id}', 'DELETE', `/api/v1/items/${id}`, { token: recepToken });
+    },
+    async (i) => {
+      const pair = itemAssocs[i];
+      if (pair) await call('DELETE /service-orders/{id}/items/{itemId}', 'DELETE', `/api/v1/service-orders/${pair.orderId}/items/${pair.assocId}`, { token: mecToken });
+    },
+  ]);
 
   // ---- fase 7: GETs (metade 10x, metade 8x) ----
   console.log(`--- fase 7/7: leituras — listagens ${GET_HIGH}x, detalhes ${GET_LOW}x ---`);
@@ -336,19 +349,15 @@ async function main() {
     ['GET /service-orders/{id}', () => [`/api/v1/service-orders/${sampleOrderId}`, recepToken]],
     ['GET /service-orders/{id}/status', () => [`/api/v1/service-orders/${sampleOrderId}/status`, recepToken]],
   ];
-  for (const [name, build] of listRoutes) {
-    await pool(CONCURRENCY, range(GET_HIGH), async () => {
-      const [path, token] = build();
-      await call(name, 'GET', path, { token });
-    });
-  }
-  for (const [name, build] of detailRoutes) {
-    await pool(CONCURRENCY, range(GET_LOW), async () => {
-      const [path, token] = build();
-      if (path.includes('undefined') || path.includes('null')) return;
-      await call(name, 'GET', path, { token });
-    });
-  }
+  await interleave(CONCURRENCY, GET_HIGH, listRoutes.map(([name, build]) => async () => {
+    const [path, token] = build();
+    await call(name, 'GET', path, { token });
+  }));
+  await interleave(CONCURRENCY, GET_LOW, detailRoutes.map(([name, build]) => async () => {
+    const [path, token] = build();
+    if (path.includes('undefined') || path.includes('null')) return;
+    await call(name, 'GET', path, { token });
+  }));
 
   // ---- resumo ----
   const elapsed = ((Date.now() - (deadline - TIME_BUDGET_MS)) / 1000).toFixed(1);
