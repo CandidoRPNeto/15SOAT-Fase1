@@ -40,7 +40,8 @@ WORKDIR /var/www
 COPY --from=deps /var/www .
 COPY --from=frontend /var/www/public/build public/build
 
-RUN cp .env.example .env && php artisan key:generate --force
+RUN mkdir -p storage/framework/cache/data storage/framework/sessions storage/framework/testing storage/framework/views storage/logs \
+    && cp .env.example .env && php artisan key:generate --force
 
 EXPOSE 8000
 

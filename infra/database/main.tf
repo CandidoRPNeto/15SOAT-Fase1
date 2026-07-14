@@ -28,7 +28,11 @@ locals {
 resource "kubernetes_manifest" "database" {
   for_each = {
     for doc in local.manifest_documents :
-    "${doc.kind}/${doc.metadata.name}" => doc
+    # kubernetes_manifest (ao contrário de `kubectl apply`) não assume o
+    # namespace "default" implicitamente — precisa vir explícito no doc.
+    "${doc.kind}/${doc.metadata.name}" => merge(doc, {
+      metadata = merge(doc.metadata, { namespace = "default" })
+    })
   }
 
   manifest = each.value
