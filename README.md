@@ -88,14 +88,46 @@ interface, prontos para substituição por implementações reais.
 | IaC          | `infra/`             | Terraform: `infra/cluster` provisiona o cluster kind local; `infra/database` aplica os manifestos de banco/config reaproveitando os arquivos de `k8s/` |
 | CI/CD        | `.github/workflows/` | Pipeline de build, testes, build+push da imagem e deploy no cluster |
 
-### Fluxo de deploy
+### Desenho da arquitetura
 
+```mermaid
+flowchart TB
+    Client(["Cliente da API<br/>(Swagger / Postman / hey)"]) --> Svc
+
+    subgraph K8s["Cluster Kubernetes (kind, provisionado via Terraform)"]
+        Svc["Service workshop-os-app<br/>NodePort :30080"]
+        HPA["HPA — 2 a 6 réplicas<br/>CPU 70% / Mem 80%"]
+        Pod1["Pod app"]
+        Pod2["Pod app"]
+        PodN["Pod app (auto-scale)"]
+        PgSvc["Service workshop-os-postgres"]
+        PgPod[("Pod Postgres<br/>+ PVC 1Gi")]
+
+        Svc --> Pod1 & Pod2 & PodN
+        HPA -. observa CPU/mem e ajusta réplicas .-> Pod1 & Pod2 & PodN
+        Pod1 & Pod2 & PodN --> PgSvc --> PgPod
+    end
+
+    subgraph TF["Infraestrutura provisionada (Terraform)"]
+        TFCluster["infra/cluster<br/>cria o cluster kind"]
+        TFDb["infra/database<br/>aplica configmap/secret/postgres<br/>(reaproveita /k8s/*.yaml)"]
+        TFCluster --> TFDb
+    end
+    TFDb -. provisiona .-> K8s
+
+    subgraph CI["CI/CD — .github/workflows/ci-cd.yml"]
+        Push["push/PR p/ master"] --> Test["test<br/>composer+npm build, PHPUnit"]
+        Test --> Build["docker-build<br/>build + push ghcr.io (só em push)"]
+        Build --> CheckSecret["check-kube-secret"]
+        CheckSecret --> DeployK8s["deploy-k8s<br/>kubectl apply nos manifests"]
+        DeployK8s --> DeployDb["deploy-db<br/>Job de migrate --seed"]
+    end
+    DeployK8s -. aplica manifests em .-> K8s
 ```
-push/PR → build (composer+npm) → test (PHPUnit, SQLite :memory:)
-        → docker-build (build + push da imagem para ghcr.io, só em push p/ master)
-        → deploy-k8s (kubectl apply: configmap, secret, postgres, deployment, service, hpa)
-        → deploy-db (Job de migração + seed)
-```
+
+Fluxo resumido: `push/PR → build (composer+npm) → test (PHPUnit, SQLite :memory:) → docker-build (build + push da imagem para ghcr.io, só em push p/ master) → deploy-k8s (kubectl apply: configmap, secret, postgres, deployment, service, hpa) → deploy-db (Job de migração + seed)`.
+
+`deploy-k8s`/`deploy-db` só rodam com o secret `KUBE_CONFIG` configurado no repositório (cluster real e alcançável); sem isso, ficam `skipped` — o cluster kind local (seção seguinte) é o alvo de deploy usado nesta fase, cloud é próximo passo (ver `infra/README.md`).
 
 Detalhes de cada estágio em [`.github/workflows/ci-cd.yml`](.github/workflows/ci-cd.yml).
 
