@@ -11,6 +11,12 @@
 //   node scripts/route-load-test.js <light|heavy|extreme> [concorrência] [orçamento_de_tempo_s]
 //   BASE_URL=http://localhost:30080 node scripts/route-load-test.js heavy 30 90
 //
+// O orçamento de tempo (4º argumento) é a válvula de segurança que corta o
+// script no limite informado. Passe 0 (ou "none"/"unlimited"/"infinite")
+// para destravá-la — o script roda até completar todas as chamadas
+// planejadas, sem corte por tempo (útil pra deixar rodando o dia todo):
+//   node scripts/route-load-test.js extreme 60 0
+//
 // Algumas rotas de transição de status da OS (generate-budget, approve,
 // cancel, start-execution, finalize, pay, deliver) só têm 1 execução
 // "de verdade" possível por OS — a API atual não expõe uma rota para mover
@@ -34,7 +40,17 @@ const DEFAULT_CONCURRENCY = { light: 5, heavy: 30, extreme: 60 };
 const DEFAULT_BUDGET_S = { light: 60, heavy: 150, extreme: 240 };
 
 const CONCURRENCY = parseInt(process.argv[3], 10) || DEFAULT_CONCURRENCY[TIER];
-const TIME_BUDGET_MS = (parseInt(process.argv[4], 10) || DEFAULT_BUDGET_S[TIER]) * 1000;
+
+// "0"/"none"/"unlimited"/"infinite" destrava a válvula de segurança — roda
+// até completar tudo, sem corte por tempo (deixar rodando o dia todo).
+// Argumento ausente usa o padrão do tier; qualquer outro número vira segundos.
+const UNLIMITED_KEYWORDS = ['0', 'none', 'unlimited', 'infinite'];
+const rawBudgetArg = process.argv[4];
+const TIME_BUDGET_MS = rawBudgetArg === undefined || rawBudgetArg === ''
+  ? DEFAULT_BUDGET_S[TIER] * 1000
+  : UNLIMITED_KEYWORDS.includes(rawBudgetArg.toLowerCase())
+    ? Infinity
+    : parseInt(rawBudgetArg, 10) * 1000;
 
 const m = MULT[TIER];
 const dm = DEL_MULT[TIER];
@@ -44,7 +60,8 @@ const POST_N = 6 * m;
 const PUT_N = 4 * m;
 const DEL_N = 1 * dm;
 
-const deadline = Date.now() + TIME_BUDGET_MS;
+const startTime = Date.now();
+const deadline = TIME_BUDGET_MS === Infinity ? Infinity : startTime + TIME_BUDGET_MS;
 const REQUEST_TIMEOUT_MS = 15000;
 
 // ---------------------------------------------------------------------
@@ -155,7 +172,8 @@ async function firstId(path, token) {
 // ---------------------------------------------------------------------
 async function main() {
   console.log(`\n=== Teste de carga por rota — tier="${TIER}" ===`);
-  console.log(`BASE_URL=${BASE_URL}  concorrência=${CONCURRENCY}  orçamento de tempo=${TIME_BUDGET_MS / 1000}s`);
+  const budgetLabel = TIME_BUDGET_MS === Infinity ? 'sem limite (válvula de segurança destravada)' : `${TIME_BUDGET_MS / 1000}s`;
+  console.log(`BASE_URL=${BASE_URL}  concorrência=${CONCURRENCY}  orçamento de tempo=${budgetLabel}`);
   console.log(`Plano por rota: GET ${GET_HIGH}x / ${GET_LOW}x · POST ${POST_N}x · PUT ${PUT_N}x · DELETE ${DEL_N}x\n`);
 
   console.log('--- setup: login (3 papéis) + IDs de referência ---');
@@ -360,7 +378,7 @@ async function main() {
   }));
 
   // ---- resumo ----
-  const elapsed = ((Date.now() - (deadline - TIME_BUDGET_MS)) / 1000).toFixed(1);
+  const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
   console.log(`\n=== Resumo — tier="${TIER}"  tempo decorrido=${elapsed}s ===`);
   const rows = [...stats.entries()].sort((a, b) => b[1].attempted - a[1].attempted);
   const totals = { attempted: 0, ok: 0, clientErr: 0, serverErr: 0 };

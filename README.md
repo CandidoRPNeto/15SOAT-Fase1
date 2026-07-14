@@ -223,6 +223,9 @@ três intensidades:
 BASE_URL=http://127.0.0.1:30080 node scripts/route-load-test.js light    # ou heavy / extreme
 # concorrência e orçamento de tempo (segundos) são opcionais:
 BASE_URL=http://127.0.0.1:30080 node scripts/route-load-test.js heavy 30 90
+# 0 (ou "none"/"unlimited"/"infinite") destrava a válvula de segurança —
+# roda até completar todas as chamadas planejadas, sem corte por tempo:
+BASE_URL=http://127.0.0.1:30080 node scripts/route-load-test.js extreme 60 0
 ```
 
 > Use `127.0.0.1`, não `localhost` — o Node resolve `localhost` para `::1`
