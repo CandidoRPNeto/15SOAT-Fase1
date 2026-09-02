@@ -18,16 +18,17 @@ ordem depois. Ver `spec.md` para a fila completa.
 
 ## Terraform (`workshop-os-infra-database`)
 
-- [ ] `versions.tf` — `required_providers { dokploy = { source =
+- [x] `versions.tf` — `required_providers { dokploy = { source =
       "vanillauys/dokploy", version = "0.10.2" } }`
-- [ ] `main.tf` — `dokploy_project.workshop_os` + `dokploy_postgres.workshop_os`
+- [x] `main.tf` — `dokploy_project.workshop_os` + `dokploy_postgres.workshop_os`
       (`postgres:16-alpine`, database/user `workshop_os`)
-- [ ] `variables.tf` — `db_password` (sensível, sem default), `dokploy_endpoint`/`dokploy_api_key` opcionais (default: variáveis de ambiente)
-- [ ] `outputs.tf` — `project_id`, `environment_id`, `postgres_id`
-- [ ] README do repo preenchido (propósito/tecnologias/execução — placeholders do epic 1)
-- [ ] CI: `terraform validate` continua passando com os recursos reais (sem `apply` — sem credenciais Dokploy disponíveis nesta sessão)
+- [x] `variables.tf` — `db_password` (sensível, sem default); endpoint/api_key vêm de `DOKPLOY_ENDPOINT`/`DOKPLOY_API_KEY` (env, sem variável Terraform própria)
+- [x] `outputs.tf` — `project_id`, `environment_id`, `postgres_id`, `postgres_status`
+- [x] README do repo preenchido (propósito/tecnologias/execução/diagrama)
+- [x] `.tool-versions` (terraform 1.15.8, alinhado com o repo principal) + CI atualizado para a mesma versão
+- [x] `terraform init`/`validate` rodados de verdade contra o provider real (0.10.2) — passou. `apply` não rodado (sem servidor Dokploy/API key disponíveis nesta sessão)
 
 ## Fechamento do epic
 
-- [ ] Push da branch (sem PR ainda, conforme pedido do usuário)
-- [ ] Apagar este arquivo e a linha correspondente em `spec.md` só depois do PR mergeado
+- [x] Push das duas branches (`15SOAT-Fase1` e `workshop-os-infra-database`), sem PR ainda, conforme pedido do usuário
+- [ ] Apagar este arquivo e a linha correspondente em `spec.md` só depois dos PRs mergeados
