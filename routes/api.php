@@ -12,8 +12,10 @@ Route::prefix('v1')->group(function () {
     // Auth — público
     Route::post('/auth/login', [AuthController::class, 'login']);
 
-    // Auth — autenticado
-    Route::middleware('auth:sanctum')->group(function () {
+    // Auth — autenticado. client_jwt (Fase 3, auth por CPF via Function
+    // Serverless) é aditivo ao Sanctum — não substitui o login
+    // email+senha existente. Ver docs/architecture/rfcs/rfc-003-cpf-auth-strategy.md.
+    Route::middleware('auth:sanctum,client_jwt')->group(function () {
         Route::post('/auth/logout', [AuthController::class, 'logout']);
         Route::get('/auth/me', [AuthController::class, 'me']);
 

@@ -15,8 +15,9 @@ Entry point for any spec-driven action: starting or closing an epic, adding a ru
 - `ep-managed-database-iac.md` — Fase 3 Epic 2: managed Postgres IaC (`workshop-os-infra-database`)
 - `ep-app-infra-iac.md` — Fase 3 Epic 3: app/domain IaC (`workshop-os-infra-kubernetes`)
 - `ep-cloud-adaptation.md` — Fase 3 Epic 4: app cloud adaptation + deploy wiring
+- `ep-cpf-auth.md` — Fase 3 Epic 5: CPF auth Lambda + API Gateway + JWT guard
 
-All four in flight at once by explicit request (stacked branches, PRs
+All five in flight at once by explicit request (stacked branches, PRs
 merged in order later) rather than the usual one-at-a-time sequencing —
 see each `ep-*.md`'s "nota de sequenciamento".
 
