@@ -38,6 +38,7 @@ Thumbs.db
 
 # Personal video-recording script (not part of the graded deliverable)
 /roteiro.md
+/dokploy.md
 
 # Terraform (keep *.lock.hcl — see infra/README.md)
 **/.terraform/
