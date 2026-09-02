@@ -31,11 +31,13 @@
 
 ## Lambda (`workshop-os-lambda-auth`)
 
-- [ ] Runtime Node.js/TypeScript — validação de CPF (checksum), chamada ao endpoint interno, emissão de JWT RS256
-- [ ] Terraform: `aws_lambda_function` + `aws_apigatewayv2_api` (HTTP API) + integração + rota + permissão
-- [ ] README preenchido
+- [x] Runtime Node.js 20/TypeScript — `src/cpf.ts`, `src/clientLookup.ts`, `src/jwt.ts`, `src/handler.ts`
+- [x] Terraform: `aws_lambda_function` + `aws_apigatewayv2_api` (HTTP API) + integração + rota + permissão + IAM role escopada só a CloudWatch Logs — `terraform validate` passou contra os providers reais
+- [x] 19 testes reais (`node:test`) — CPF, JWT RS256 (par de chaves gerado por teste), lookup HTTP, handler fim-a-fim
+- [x] `npm run typecheck` e `npm run build` (esbuild, 136.8kb) passaram
+- [x] README preenchido
 
 ## Fechamento do epic
 
-- [ ] Push das branches (sem PR ainda)
+- [x] Push das branches (sem PR ainda) — `15SOAT-Fase1`, `workshop-os-lambda-auth`
 - [ ] Apagar este arquivo e a linha em `spec.md` só depois dos PRs mergeados
