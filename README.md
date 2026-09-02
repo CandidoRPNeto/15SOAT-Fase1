@@ -116,9 +116,25 @@ flowchart TB
 
 Fluxo resumido: `push/PR → build (composer+npm) → test (PHPUnit, SQLite :memory:) → docker-build (build + push da imagem para ghcr.io, só em push p/ master) → deploy-k8s (kubectl apply: configmap, secret, postgres, deployment, service, hpa) → deploy-db (Job de migração + seed)`.
 
-`deploy-k8s`/`deploy-db` só rodam com o secret `KUBE_CONFIG` configurado no repositório (cluster real e alcançável); sem isso, ficam `skipped` — o cluster kind local (seção seguinte) é o alvo de deploy usado nesta fase, cloud é próximo passo (ver `infra/README.md`).
+`deploy-k8s`/`deploy-db` só rodam com o secret `KUBE_CONFIG` configurado no repositório (cluster real e alcançável); sem isso, ficam `skipped` — o cluster kind local (seção seguinte) é a referência K8s literal desta fase (ver [`k8s/README.md`](k8s/README.md)); o deploy em nuvem vigente é definido na Fase 3, seção abaixo.
 
 Detalhes de cada estágio em [`.github/workflows/ci-cd.yml`](.github/workflows/ci-cd.yml).
+
+---
+
+## Fase 3 (em andamento) — operação corporativa
+
+Evolução para nível corporativo: API Gateway, autenticação via CPF emitindo
+JWT a partir de uma Function Serverless, split em 4 repositórios com CI/CD
+e branch protection próprios, banco gerenciado, observabilidade via
+Datadog. Requisito completo em [`evolucao_fase3`](evolucao_fase3);
+decomposição em epics e decisões arquiteturais (RFCs/ADRs) em
+[`spec.md`](spec.md), [`backlog.md`](backlog.md) e
+[`docs/architecture/`](docs/architecture/). Este repositório é o repo #4
+("Aplicação principal") da Fase 3; os outros 3
+(`workshop-os-lambda-auth`, `workshop-os-infra-kubernetes`,
+`workshop-os-infra-database`) estão listados no
+[ADR-002](docs/architecture/adrs/adr-002-four-repo-split.md).
 
 ---
 
