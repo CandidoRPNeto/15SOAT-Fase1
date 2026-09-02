@@ -71,6 +71,20 @@ resource "dokploy_postgres" "workshop_os" {
 `postgres:16-alpine` replica a versão já usada em `docker-compose.yml` e
 `k8s/postgres.yaml` (Fase 2) — sem mudança de engine/versão nesta fase.
 
+### Lacuna conhecida: nenhum backend Terraform remoto configurado
+
+Nenhum dos módulos (`workshop-os-infra-database`, `workshop-os-infra-kubernetes`)
+declara um `backend` — o state fica local. Isso é mais fundamental do que
+"os dois repos não trocam outputs automaticamente" (próxima seção): mesmo
+para UM repo sozinho, um `terraform apply` rodado num runner efêmero de CI
+(Epic 4, `deploy.yml`) perde o state a cada run — o próximo apply não sabe
+que os recursos já existem. Os workflows de deploy (Epic 4) documentam essa
+ressalva explicitamente em vez de fingir que funcionam de ponta a ponta.
+Candidato mais simples pra resolver, sem adicionar nuvem/serviço pago novo:
+backend `pg` apontando pro próprio Postgres provisionado aqui — mas isso é
+um passo futuro, não decidido nesta RFC (bootstrapping: o backend do módulo
+de banco não pode depender do banco que ele mesmo cria).
+
 ### Lacuna conhecida: state não compartilhado entre repositórios
 
 `workshop-os-infra-database` e `workshop-os-infra-kubernetes` são
