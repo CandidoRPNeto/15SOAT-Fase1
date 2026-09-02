@@ -9,9 +9,9 @@ flowchart TB
     Cliente(["Cliente final<br/>(app/portal)"])
     Staff(["Recepcionista/Mecânico"])
 
-    subgraph AWS["AWS — workshop-os-lambda-auth (Epic 5)"]
+    subgraph AWS["AWS — 15SOAT-Fase1-lambda (Epic 5)"]
         APIGW["API Gateway<br/>(HTTP API)"]
-        Lambda["Lambda: workshop-os-cpf-auth<br/>Node.js 20"]
+        Lambda["Lambda: 15SOAT-Fase1-cpf-auth<br/>Node.js 20"]
         APIGW --> Lambda
     end
 
@@ -19,12 +19,12 @@ flowchart TB
         direction TB
         Traefik["Traefik<br/>(Gateway da app — controle e roteamento)"]
 
-        subgraph AppInfra["workshop-os-infra-kubernetes (Epic 3)"]
-            App["dokploy_application<br/>workshop-os-app<br/>2 réplicas fixas (ADR-006)"]
+        subgraph AppInfra["15SOAT-Fase1-kubernetes (Epic 3)"]
+            App["dokploy_application<br/>15SOAT-Fase1-app<br/>2 réplicas fixas (ADR-006)"]
         end
 
-        subgraph DbInfra["workshop-os-infra-database (Epic 2)"]
-            DB[("dokploy_postgres<br/>workshop-os-postgres")]
+        subgraph DbInfra["15SOAT-Fase1-database (Epic 2)"]
+            DB[("dokploy_postgres<br/>15SOAT-Fase1-postgres")]
         end
 
         subgraph ObsInfra["Observabilidade (Epic 6)"]
@@ -45,9 +45,9 @@ flowchart TB
 
     subgraph CICD["CI/CD — 4 repos, GitHub Actions (ADR-002)"]
         CI4["15SOAT-Fase1<br/>ci-cd.yml"]
-        CI1["workshop-os-lambda-auth<br/>ci.yml + deploy.yml"]
-        CI2["workshop-os-infra-kubernetes<br/>ci.yml + deploy.yml"]
-        CI3["workshop-os-infra-database<br/>ci.yml + deploy.yml"]
+        CI1["15SOAT-Fase1-lambda<br/>ci.yml + deploy.yml"]
+        CI2["15SOAT-Fase1-kubernetes<br/>ci.yml + deploy.yml"]
+        CI3["15SOAT-Fase1-database<br/>ci.yml + deploy.yml"]
     end
 
     Cliente -->|"POST /auth/cpf"| APIGW

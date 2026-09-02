@@ -17,7 +17,7 @@ API RESTful para gestão de ordens de serviço (OS) de uma oficina mecânica.
 | Fila         | Database driver                   |
 | Container    | Docker (multi-stage)              |
 | Orquestração | Kubernetes local (`/k8s`, referência — [ADR-003](docs/architecture/adrs/adr-003-keep-local-k8s-reference.md)) + Dokploy (cloud, Fase 3 — [ADR-001](docs/architecture/adrs/adr-001-dokploy-as-cloud.md)) |
-| IaC          | Terraform (`/infra` local; `workshop-os-infra-*` cloud, Fase 3) |
+| IaC          | Terraform (`/infra` local; `15SOAT-Fase1-*` cloud, Fase 3) |
 | CI/CD        | GitHub Actions (`.github/workflows/ci-cd.yml`) |
 | Observabilidade | Datadog (Fase 3 — [ADR-009](docs/architecture/adrs/adr-009-datadog-agent-placement.md)) |
 
@@ -143,9 +143,9 @@ tabela de status por componente.
 
 | # | Repo | Conteúdo |
 |---|------|----------|
-| 1 | [`workshop-os-lambda-auth`](https://github.com/CandidoRPNeto/workshop-os-lambda-auth) | Lambda AWS (CPF → status do cliente → JWT) + API Gateway |
-| 2 | [`workshop-os-infra-kubernetes`](https://github.com/CandidoRPNeto/workshop-os-infra-kubernetes) | Terraform: app + domínio + Datadog Agent/monitors |
-| 3 | [`workshop-os-infra-database`](https://github.com/CandidoRPNeto/workshop-os-infra-database) | Terraform: Postgres gerenciado (Dokploy) |
+| 1 | [`15SOAT-Fase1-lambda`](https://github.com/CandidoRPNeto/15SOAT-Fase1-lambda) | Lambda AWS (CPF → status do cliente → JWT) + API Gateway |
+| 2 | [`15SOAT-Fase1-kubernetes`](https://github.com/CandidoRPNeto/15SOAT-Fase1-kubernetes) | Terraform: app + domínio + Datadog Agent/monitors |
+| 3 | [`15SOAT-Fase1-database`](https://github.com/CandidoRPNeto/15SOAT-Fase1-database) | Terraform: Postgres gerenciado (Dokploy) |
 | 4 | `15SOAT-Fase1` (este repo) | Aplicação Laravel + guard CPF/JWT + endpoint interno |
 
 Detalhes da divisão em [ADR-002](docs/architecture/adrs/adr-002-four-repo-split.md).

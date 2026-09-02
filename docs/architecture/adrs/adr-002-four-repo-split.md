@@ -13,17 +13,20 @@ banco gerenciado, e a aplicação principal.
 
 | # | Repo | Conteúdo | Branch padrão |
 |---|------|----------|-----------------|
-| 1 | `workshop-os-lambda-auth` | AWS Lambda (valida CPF, consulta cliente, emite JWT), CI/CD próprio, README com URL do API Gateway | `main` |
-| 2 | `workshop-os-infra-kubernetes` | Terraform (provider Dokploy) — recurso de app, domínio/roteamento, deploy webhook | `main` |
-| 3 | `workshop-os-infra-database` | Terraform (provider Dokploy) — instância Postgres gerenciada | `main` |
+| 1 | `15SOAT-Fase1-lambda` | AWS Lambda (valida CPF, consulta cliente, emite JWT), CI/CD próprio, README com URL do API Gateway | `main` |
+| 2 | `15SOAT-Fase1-kubernetes` | Terraform (provider Dokploy) — recurso de app, domínio/roteamento, deploy webhook | `main` |
+| 3 | `15SOAT-Fase1-database` | Terraform (provider Dokploy) — instância Postgres gerenciada | `main` |
 | 4 | `15SOAT-Fase1` (este repo, sem rename) | Laravel app, Dockerfile, docker-compose, `/k8s`+`/infra` mantidos como referência local, CI/CD passa a também deployar no Dokploy | `master` |
 
 O repo 4 reaproveita o repositório existente (histórico de Fase 1/2 já
 compartilhado com `soat-architecture`) em vez de criar um repo novo — ver
 justificativa em `history.md`. Os 3 repos novos usam o prefixo
-`workshop-os-` (nome do produto, já usado em `CLAUDE.md`/README), não um
-prefixo `15soat-fase3-` que perde sentido após o curso. Todos criados
-públicos, consistente com o repo 4 (reversível a qualquer momento).
+`15SOAT-Fase1-` — mesmo prefixo do repo 4, o nome do projeto no GitHub —
+em vez do `workshop-os-` usado na primeira leva (nome do produto, ainda
+válido internamente em identificadores de infra, mas trocado no nome dos
+repos por um nome melhor/mais consistente com o repo principal, antes do
+merge do PR #1). Todos criados públicos, consistente com o repo 4
+(reversível a qualquer momento).
 
 ## Consequências
 

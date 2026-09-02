@@ -7,7 +7,7 @@
 ## Contexto
 
 `evolucao_fase3` exige "Banco de Dados Gerenciado (PostgreSQL)" provisionado
-via Terraform, num repositório próprio (`workshop-os-infra-database`, ver
+via Terraform, num repositório próprio (`15SOAT-Fase1-database`, ver
 [ADR-002](../adrs/adr-002-four-repo-split.md)). [RFC-001](rfc-001-cloud-strategy.md)/
 [ADR-001](../adrs/adr-001-dokploy-as-cloud.md) já decidiram que a nuvem é
 Dokploy — falta decidir como o Postgres é provisionado *dentro* do Dokploy,
@@ -47,20 +47,20 @@ Epic 3 quando o mesmo provider for reusado para `dokploy_application`).
 
 Dokploy organiza recursos como **project > environment > service**. Todo
 `dokploy_project` já nasce com um environment `production`. Decisão: este
-repositório (`workshop-os-infra-database`) é quem cria o
-`dokploy_project` (`workshop-os`) — é o primeiro na ordem de dependência
+repositório (`15SOAT-Fase1-database`) é quem cria o
+`dokploy_project` (`15SOAT-Fase1`) — é o primeiro na ordem de dependência
 dos epics (`backlog.md`: Epic 2 antes do Epic 3) — e o `dokploy_postgres`
 dentro do environment `production` desse projeto. O Epic 3
-(`workshop-os-infra-kubernetes`, recurso de app) **não cria um projeto
+(`15SOAT-Fase1-kubernetes`, recurso de app) **não cria um projeto
 novo**: consome o mesmo `project_id`/`environment_id` já provisionados
 aqui, para que app e banco fiquem no mesmo projeto Dokploy.
 
 ### Recurso
 
 ```hcl
-resource "dokploy_postgres" "workshop_os" {
-  name              = "workshop-os-postgres"
-  environment_id    = [for e in dokploy_project.workshop_os.environments : e.id if e.name == "production"][0]
+resource "dokploy_postgres" "fase1" {
+  name              = "15SOAT-Fase1-postgres"
+  environment_id    = [for e in dokploy_project.fase1.environments : e.id if e.name == "production"][0]
   database_name     = "workshop_os"
   database_user     = "workshop_os"
   database_password = var.db_password # variável sensível, sem default
@@ -73,7 +73,7 @@ resource "dokploy_postgres" "workshop_os" {
 
 ### Lacuna conhecida: nenhum backend Terraform remoto configurado
 
-Nenhum dos módulos (`workshop-os-infra-database`, `workshop-os-infra-kubernetes`)
+Nenhum dos módulos (`15SOAT-Fase1-database`, `15SOAT-Fase1-kubernetes`)
 declara um `backend` — o state fica local. Isso é mais fundamental do que
 "os dois repos não trocam outputs automaticamente" (próxima seção): mesmo
 para UM repo sozinho, um `terraform apply` rodado num runner efêmero de CI
@@ -87,7 +87,7 @@ de banco não pode depender do banco que ele mesmo cria).
 
 ### Lacuna conhecida: state não compartilhado entre repositórios
 
-`workshop-os-infra-database` e `workshop-os-infra-kubernetes` são
+`15SOAT-Fase1-database` e `15SOAT-Fase1-kubernetes` são
 repositórios (e portanto states Terraform) separados, mas o segundo precisa
 do `project_id`/`environment_id` gerados pelo primeiro. Sem um backend
 remoto compartilhado (Terraform Cloud, S3+DynamoDB, etc. — nenhum
@@ -120,6 +120,6 @@ nunca de arquivo versionado — mesma disciplina do `KUBE_CONFIG` da Fase 2.
 
 ## Perguntas em aberto
 
-- Backend remoto compartilhado entre `workshop-os-infra-database` e
-  `workshop-os-infra-kubernetes`: decidir só se a transferência manual de
+- Backend remoto compartilhado entre `15SOAT-Fase1-database` e
+  `15SOAT-Fase1-kubernetes`: decidir só se a transferência manual de
   outputs se mostrar dolorosa na prática.

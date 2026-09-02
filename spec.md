@@ -12,8 +12,8 @@ Entry point for any spec-driven action: starting or closing an epic, adding a ru
 ## Epic queue
 
 - `ep-multirepo-foundation.md` — Fase 3 Epic 1: multi-repo foundation + branch protection (PR #1 open, merge pending)
-- `ep-managed-database-iac.md` — Fase 3 Epic 2: managed Postgres IaC (`workshop-os-infra-database`)
-- `ep-app-infra-iac.md` — Fase 3 Epic 3: app/domain IaC (`workshop-os-infra-kubernetes`)
+- `ep-managed-database-iac.md` — Fase 3 Epic 2: managed Postgres IaC (`15SOAT-Fase1-database`)
+- `ep-app-infra-iac.md` — Fase 3 Epic 3: app/domain IaC (`15SOAT-Fase1-kubernetes`)
 - `ep-cloud-adaptation.md` — Fase 3 Epic 4: app cloud adaptation + deploy wiring
 - `ep-cpf-auth.md` — Fase 3 Epic 5: CPF auth Lambda + API Gateway + JWT guard
 - `ep-observability.md` — Fase 3 Epic 6: Datadog Agent + monitors
