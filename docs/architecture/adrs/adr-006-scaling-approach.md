@@ -15,7 +15,7 @@ número é fixo, ou não é gerido por este provider.
 
 ## Decisão
 
-O recurso de app do Epic 3 (`workshop-os-infra-kubernetes`) usa
+O recurso de app do Epic 3 (`15SOAT-Fase1-kubernetes`) usa
 `replicas = 2` como baseline fixo — mesmo valor do `minReplicas` do
 [`k8s/hpa.yaml`](../../../k8s/hpa.yaml) da Fase 2, para manter o mesmo piso
 de disponibilidade (2 réplicas, não 1) mesmo sem autoscaling real. O

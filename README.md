@@ -1,4 +1,4 @@
-# 15SOAT - Fase 1/2 - Tech Challenge
+# 15SOAT - Fase 1/2/3 - Tech Challenge
 
 API RESTful para gestão de ordens de serviço (OS) de uma oficina mecânica.
 
@@ -12,13 +12,14 @@ API RESTful para gestão de ordens de serviço (OS) de uma oficina mecânica.
 | Framework    | Laravel 13                        |
 | Banco        | PostgreSQL 16 (produção/Docker/K8s) |
 | Banco testes | SQLite `:memory:`                 |
-| Auth         | Laravel Sanctum (API tokens)      |
+| Auth         | Laravel Sanctum (API tokens) + JWT RS256 (Fase 3, CPF — `firebase/php-jwt`) |
 | Docs         | L5-Swagger / OpenAPI 3            |
 | Fila         | Database driver                   |
 | Container    | Docker (multi-stage)              |
-| Orquestração | Kubernetes (`/k8s`)               |
-| IaC          | Terraform (`/infra`)              |
+| Orquestração | Kubernetes local (`/k8s`, referência — [ADR-003](docs/architecture/adrs/adr-003-keep-local-k8s-reference.md)) + Dokploy (cloud, Fase 3 — [ADR-001](docs/architecture/adrs/adr-001-dokploy-as-cloud.md)) |
+| IaC          | Terraform (`/infra` local; `15SOAT-Fase1-*` cloud, Fase 3) |
 | CI/CD        | GitHub Actions (`.github/workflows/ci-cd.yml`) |
+| Observabilidade | Datadog (Fase 3 — [ADR-009](docs/architecture/adrs/adr-009-datadog-agent-placement.md)) |
 
 ---
 
@@ -122,19 +123,58 @@ Detalhes de cada estágio em [`.github/workflows/ci-cd.yml`](.github/workflows/c
 
 ---
 
-## Fase 3 (em andamento) — operação corporativa
+## Fase 3 — operação corporativa
 
 Evolução para nível corporativo: API Gateway, autenticação via CPF emitindo
 JWT a partir de uma Function Serverless, split em 4 repositórios com CI/CD
 e branch protection próprios, banco gerenciado, observabilidade via
-Datadog. Requisito completo em [`evolucao_fase3`](evolucao_fase3);
-decomposição em epics e decisões arquiteturais (RFCs/ADRs) em
-[`spec.md`](spec.md), [`backlog.md`](backlog.md) e
-[`docs/architecture/`](docs/architecture/). Este repositório é o repo #4
-("Aplicação principal") da Fase 3; os outros 3
-(`workshop-os-lambda-auth`, `workshop-os-infra-kubernetes`,
-`workshop-os-infra-database`) estão listados no
-[ADR-002](docs/architecture/adrs/adr-002-four-repo-split.md).
+Datadog. Requisito completo em [`evolucao_fase3`](evolucao_fase3).
+
+**Status**: arquitetura, código e Terraform completos e validados
+localmente (testes reais + `terraform validate` contra os providers reais
+em todos os módulos); nenhum `terraform apply`/deploy real foi executado —
+depende de credenciais de nuvem (Dokploy, AWS, Datadog) do usuário, não
+compartilhadas nesta sessão de desenvolvimento. Ver o
+[diagrama de componentes](docs/architecture/diagrams/components.md) pra
+uma visão consolidada de nuvem × APIs × banco × monitoramento, com a
+tabela de status por componente.
+
+### Os 4 repositórios
+
+| # | Repo | Conteúdo |
+|---|------|----------|
+| 1 | [`15SOAT-Fase1-lambda`](https://github.com/CandidoRPNeto/15SOAT-Fase1-lambda) | Lambda AWS (CPF → status do cliente → JWT) + API Gateway |
+| 2 | [`15SOAT-Fase1-kubernetes`](https://github.com/CandidoRPNeto/15SOAT-Fase1-kubernetes) | Terraform: app + domínio + Datadog Agent/monitors |
+| 3 | [`15SOAT-Fase1-database`](https://github.com/CandidoRPNeto/15SOAT-Fase1-database) | Terraform: Postgres gerenciado (Dokploy) |
+| 4 | `15SOAT-Fase1` (este repo) | Aplicação Laravel + guard CPF/JWT + endpoint interno |
+
+Detalhes da divisão em [ADR-002](docs/architecture/adrs/adr-002-four-repo-split.md).
+
+### Decomposição e decisões
+
+Epics e dependências em [`spec.md`](spec.md)/[`backlog.md`](backlog.md).
+RFCs/ADRs completos em [`docs/architecture/`](docs/architecture/):
+[RFC-001](docs/architecture/rfcs/rfc-001-cloud-strategy.md) (nuvem),
+[RFC-002](docs/architecture/rfcs/rfc-002-managed-database-strategy.md) (banco),
+[RFC-003](docs/architecture/rfcs/rfc-003-cpf-auth-strategy.md) (auth CPF),
+ADR-001 a ADR-009. Diagramas de sequência:
+[autenticação](docs/architecture/diagrams/sequence-auth.md),
+[abertura de OS](docs/architecture/diagrams/sequence-service-order.md).
+
+### Autenticação por CPF — testando localmente
+
+Rota nova, fora de `/api/v1`, exclusiva do Lambda:
+
+```bash
+curl -X POST http://localhost:8000/internal/clients/cpf-lookup \
+  -H "Content-Type: application/json" \
+  -H "X-Internal-Api-Key: $LAMBDA_INTERNAL_API_KEY" \
+  -d '{"cpf_cnpj": "111.444.777-35"}'
+```
+
+Rotas de `/api/v1` aceitam `Authorization: Bearer <jwt>` (RS256, emitido
+pelo Lambda) além do token Sanctum de sempre — aditivo, não substitui o
+login por email/senha (ver [RFC-003](docs/architecture/rfcs/rfc-003-cpf-auth-strategy.md)).
 
 ---
 
