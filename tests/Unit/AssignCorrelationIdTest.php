@@ -3,7 +3,9 @@
 namespace Tests\Unit;
 
 use App\Http\Middleware\AssignCorrelationId;
+use Illuminate\Foundation\Application;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Facade;
 use Illuminate\Support\Facades\Log;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpFoundation\Response;
@@ -18,7 +20,7 @@ class AssignCorrelationIdTest extends TestCase
         // pra resolver. Testamos a lógica do middleware sem subir a app
         // inteira (RefreshDatabase/TestCase do Laravel), então montamos só
         // o suficiente pra facade funcionar.
-        $app = new \Illuminate\Foundation\Application;
+        $app = new Application;
         $app->singleton('log', function () {
             return new class
             {
@@ -30,7 +32,7 @@ class AssignCorrelationIdTest extends TestCase
                 }
             };
         });
-        \Illuminate\Support\Facades\Facade::setFacadeApplication($app);
+        Facade::setFacadeApplication($app);
     }
 
     public function test_generates_a_correlation_id_when_no_header_is_present(): void
