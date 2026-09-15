@@ -22,3 +22,17 @@ data:
   SESSION_DRIVER: "database"
   L5_SWAGGER_GENERATE_ALWAYS: "false"
   L5_SWAGGER_CONST_HOST: "http://localhost:8000"
+  # Datadog APM — o tracer vem embutido na imagem (ver Dockerfile).
+  DD_SERVICE: "workshop-os-api"
+  DD_ENV: "dev"
+  DD_VERSION: "1.0.0"
+  DD_TRACE_ENABLED: "true"
+  # `php artisan serve` usa a SAPI CLI, que o dd-trace ignora por padrão.
+  # Sem isto o tracer carrega mas não emite span algum.
+  DD_TRACE_CLI_ENABLED: "true"
+  # O Agent roda como container no host, fora do cluster. 172.22.0.1 é o gateway
+  # da rede docker `kind`, ou seja, como o Pod enxerga o host. Se o cluster kind
+  # for recriado com outra subnet, reconfira com:
+  #   docker network inspect kind --format '{{range .IPAM.Config}}{{.Gateway}} {{end}}'
+  DD_AGENT_HOST: "172.22.0.1"
+  DD_TRACE_AGENT_PORT: "8126"

@@ -35,6 +35,14 @@ RUN apt-get update && apt-get install -y \
     && docker-php-ext-install pdo pdo_pgsql pgsql mbstring xml bcmath zip \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
+# Datadog APM. O injetor single-step de host (DD_APM_INSTRUMENTATION_ENABLED=docker)
+# só tem pacote para Debian/RHEL/SUSE — num host Arch ele falha com "OS not
+# supported", então o tracer é instalado na própria imagem, que é Debian.
+# dd-trace-php 1.25.1 cobre o PHP 8.4 desta base (ABI 20240924).
+RUN curl -sLO https://github.com/DataDog/dd-trace-php/releases/latest/download/datadog-setup.php \
+    && php datadog-setup.php --php-bin=all --enable-appsec=false \
+    && rm datadog-setup.php
+
 WORKDIR /var/www
 
 COPY --from=deps /var/www .
