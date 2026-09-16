@@ -36,3 +36,9 @@ data:
   #   docker network inspect kind --format '{{range .IPAM.Config}}{{.Gateway}} {{end}}'
   DD_AGENT_HOST: "172.22.0.1"
   DD_TRACE_AGENT_PORT: "8126"
+  # Obrigatório: DD_AGENT_HOST/DD_TRACE_AGENT_PORT configuram só a extensão PHP.
+  # Quem envia os traces é o processo sidecar (datadog-ipc-helper), e o trace
+  # sender dele ignora essas duas e cai no default `localhost:8126` — dentro do
+  # Pod isso é "Connection refused" e nenhum trace chega ao Agent, apesar do
+  # debug da extensão anunciar "Flushing trace ... for http://172.22.0.1:8126".
+  DD_TRACE_AGENT_URL: "http://172.22.0.1:8126"
