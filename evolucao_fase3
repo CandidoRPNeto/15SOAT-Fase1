@@ -1,0 +1,64 @@
+Objetivo
+Elevar a aplicação a um nível de operação corporativa, utilizando práticas
+de cloud, infraestrutura como código, segurança e observabilidade.
+Requisitos obrigatórios
+Autenticação e API Gateway
+● Implementar um API Gateway compativel com laravel (exemplo: AWS API Gateway, Kong,
+Traefik ou outro).
+● Proteger rotas sensíveis da aplicação com autenticação via CPF.
+● Criar uma Function Serverless para:
+○ Validar o CPF do cliente;
+○ Consultar a existência e o status do cliente na base de dados;
+○ Gerar e devolver um token (JWT) válido para consumo das APIs
+protegidas.
+Estrutura de Repositórios e CI/CD
+Organizar o projeto em quatro repositórios separados, cada um com
+CI/CD implementado (GitHub Actions, GitLab CI, etc.), com deploy automático
+para a nuvem:
+1. Lambda (Function Serverless)
+2. Infraestrutura Kubernetes (Terraform)
+3. Infraestrutura do Banco de Dados Gerenciado (Terraform)
+4. Aplicação principal executando em Kubernetes
+Regras de proteção:
+● Branch main/master protegida (sem commits diretos).
+● Uso obrigatório de Pull Requests para merge.
+● Deploy automático das branches de homologação e produção.
+Infraestrutura obrigatória (vamos escolher o dockploy):
+● API Gateway para controle e roteamento.
+● Function Serverless para autenticação.
+● Banco de Dados Gerenciado (PostgreSQL).
+● Cluster Kubernetes com escalabilidade.
+● Terraform para provisionamento.
+Monitoramento e Observabilidade
+● Implementar integração com Datadog
+● Monitorar:
+○ Latência das APIs.
+○ Consumo de recursos do Kubernetes (CPU, memória).
+○ Healthchecks e uptime.
+○ Alertas para falhas no processamento de ordens de serviço.
+○ Logs estruturados (JSON), incluindo correlação entre requisições.
+Documentação da Arquitetura
+Entregar a documentação arquitetural completa, contendo:
+● Diagrama de Componentes (com a visão de nuvem, APIs, banco e
+monitoramento).
+● Diagrama de Sequência para o fluxo de autenticação e abertura de
+ordens de serviço.
+● RFCs (Request for Comments) para decisões técnicas relevantes
+(exemplo: escolha da nuvem, do banco e da estratégia de autenticação).
+● ADRs (Architecture Decision Records) para decisões arquiteturais
+permanentes (exemplo: escolha do padrão de comunicação, uso de
+HPA).
+
+Repositórios Git:
+● 4 repositórios separados com código, CI/CD e instruções claras no
+README.md.
+● Todos os repositórios devem incluir:
+○ Dockerfiles (quando aplicável).
+○ Pipelines de CI/CD funcionais.
+○ Links para os deploys ativos (se aplicável).
+README.md (em cada repositório):
+● Descrição clara do propósito.
+● Tecnologias utilizadas.
+● Passos para execução e deploy.
+● Diagrama da arquitetura específica daquele repositório.
+● Link para o Swagger/Postman das APIs.
