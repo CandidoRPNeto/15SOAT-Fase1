@@ -33,7 +33,7 @@ alguma forma, ainda que sem credenciais reais):
 | Logs estruturados + correlação | `AssignCorrelationId` (Epic 4) | Testes reais, já mergeados |
 | Latência das APIs | `LogRequestLatency` — `duration_ms` no log JSON | Teste real (`RequestLatencyTest`) |
 | CPU/memória de containers | `datadog_monitor` (`docker.cpu.usage`, `docker.mem.rss`) — Agent coleta via docker.sock, zero instrumentação extra | `terraform validate` contra o schema real do provider Datadog |
-| Falhas no processamento de OS | `datadog_monitor` tipo `log alert` sobre `service:workshop-os-app status:error` | `terraform validate` |
+| Falhas no processamento de OS | `datadog_monitor` tipo `log alert` sobre `service:15SOAT-Fase1-app status:error` | `terraform validate` |
 | Healthchecks/uptime | `notify_no_data=true` nos monitors de container — ausência de dados = container fora do ar | `terraform validate` — **interpretação pragmática, não um synthetic HTTP check** |
 
 ## Consequências

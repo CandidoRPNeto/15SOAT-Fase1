@@ -10,7 +10,7 @@ da aplicação principal. Decisões referenciadas:
 sequenceDiagram
     actor Cliente
     participant APIGW as AWS API Gateway
-    participant Lambda as Lambda (workshop-os-lambda-auth)
+    participant Lambda as Lambda (15SOAT-Fase1-lambda)
     participant Traefik as Traefik (Dokploy)
     participant App as Laravel (15SOAT-Fase1)
     participant DB as Postgres (Dokploy)
@@ -34,7 +34,7 @@ sequenceDiagram
             Lambda-->>APIGW: 403 Forbidden
             APIGW-->>Cliente: 403 Forbidden
         else existe e status=active
-            Lambda->>Lambda: assina JWT RS256<br/>(sub=user_id, iss=workshop-os-lambda-auth, exp curto)
+            Lambda->>Lambda: assina JWT RS256<br/>(sub=user_id, iss=15SOAT-Fase1-lambda, exp curto)
             Lambda-->>APIGW: 200 { token }
             APIGW-->>Cliente: 200 { token }
         end

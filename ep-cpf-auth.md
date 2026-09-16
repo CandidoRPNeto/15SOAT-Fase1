@@ -1,7 +1,7 @@
 # Epic 5 — Auth Lambda + API Gateway + validação JWT
 
 **Depende de**: Epic 1, Epic 4 (app precisa estar pronta pra rodar em nuvem antes de proteger rotas com um auth novo).
-**Repos de código**: `15SOAT-Fase1`, `workshop-os-lambda-auth`.
+**Repos de código**: `15SOAT-Fase1`, `15SOAT-Fase1-lambda`.
 **Objetivo**: Lambda (CPF → status do cliente → JWT), API Gateway AWS na frente dele, guard `client_jwt` protegendo rotas de `/api/v1` além do Sanctum.
 
 **Nota de sequenciamento**: branch empilhada
@@ -29,7 +29,7 @@
 - [x] `php artisan l5-swagger:generate` rodado — endpoint aparece no spec
 - [x] Suíte completa: 149 passou (era 136 antes deste epic)
 
-## Lambda (`workshop-os-lambda-auth`)
+## Lambda (`15SOAT-Fase1-lambda`)
 
 - [x] Runtime Node.js 20/TypeScript — `src/cpf.ts`, `src/clientLookup.ts`, `src/jwt.ts`, `src/handler.ts`
 - [x] Terraform: `aws_lambda_function` + `aws_apigatewayv2_api` (HTTP API) + integração + rota + permissão + IAM role escopada só a CloudWatch Logs — `terraform validate` passou contra os providers reais
@@ -39,5 +39,5 @@
 
 ## Fechamento do epic
 
-- [x] Push das branches (sem PR ainda) — `15SOAT-Fase1`, `workshop-os-lambda-auth`
+- [x] Push das branches (sem PR ainda) — `15SOAT-Fase1`, `15SOAT-Fase1-lambda`
 - [ ] Apagar este arquivo e a linha em `spec.md` só depois dos PRs mergeados

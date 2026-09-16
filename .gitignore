@@ -36,6 +36,10 @@ Thumbs.db
 # Internal Fase 2 planning docs (not part of the graded deliverable)
 /docs/specs/
 
+# Personal video-recording script (not part of the graded deliverable)
+/roteiro.md
+/dokploy.md
+
 # Terraform (keep *.lock.hcl — see infra/README.md)
 **/.terraform/
 *.tfstate

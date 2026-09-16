@@ -25,4 +25,4 @@ Source: [`evolucao_fase3`](evolucao_fase3). See `spec.md`'s epic queue and `back
 Key decisions already made (see `docs/architecture/adrs/adr-001-dokploy-as-cloud.md` and `rfc-001-cloud-strategy.md` for full rationale):
 - Dokploy (self-hosted PaaS) is the primary cloud, standing in for the "Kubernetes cluster with scalability" requirement via its own orchestrator (Swarm/Compose) — no real cloud K8s cluster provisioned. `/k8s` and `/infra` from Fase 2 are kept as the literal local K8s reference implementation, not removed.
 - The CPF-auth Function Serverless is real AWS Lambda (free tier) — the one piece on a second cloud.
-- Project splits into 4 repos: this one (`15SOAT-Fase1`, unchanged) plus `workshop-os-lambda-auth`, `workshop-os-infra-kubernetes`, `workshop-os-infra-database`.
+- Project splits into 4 repos: this one (`15SOAT-Fase1`, unchanged) plus `15SOAT-Fase1-lambda`, `15SOAT-Fase1-kubernetes`, `15SOAT-Fase1-database`.

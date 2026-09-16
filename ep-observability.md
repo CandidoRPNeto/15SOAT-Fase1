@@ -1,7 +1,7 @@
 # Epic 6 — Observabilidade (Datadog)
 
 **Depende de**: Epic 4, Epic 5.
-**Repos de código**: `15SOAT-Fase1`, `workshop-os-infra-kubernetes`.
+**Repos de código**: `15SOAT-Fase1`, `15SOAT-Fase1-kubernetes`.
 **Objetivo**: Datadog Agent coletando métricas de container, monitors pros itens de `evolucao_fase3` que dava pra construir e validar sem uma conta Datadog conectada nesta sessão.
 
 **Nota de sequenciamento**: branch empilhada
@@ -18,7 +18,7 @@
 - [x] Registrado em `bootstrap/app.php` (mais externo que `AssignCorrelationId`, mede a requisição inteira)
 - [x] Suíte completa: 150 passou (era 149 depois do Epic 5)
 
-## Infra (`workshop-os-infra-kubernetes`)
+## Infra (`15SOAT-Fase1-kubernetes`)
 
 - [x] `dokploy_compose.datadog_agent` — Agent oficial, `docker.sock` montado, coleta de logs habilitada
 - [x] `datadog_monitor` × 3 — CPU, memória (ambos com `notify_no_data` como sinal de uptime), falhas de OS (log alert)
@@ -33,5 +33,5 @@
 
 ## Fechamento do epic
 
-- [x] Push das branches (sem PR ainda) — `15SOAT-Fase1`, `workshop-os-infra-kubernetes`
+- [x] Push das branches (sem PR ainda) — `15SOAT-Fase1`, `15SOAT-Fase1-kubernetes`
 - [ ] Apagar este arquivo e a linha em `spec.md` só depois dos PRs mergeados

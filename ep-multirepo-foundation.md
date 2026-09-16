@@ -20,30 +20,53 @@
 
 ## Repositórios GitHub
 
-- [x] `gh repo create workshop-os-lambda-auth --public`
-- [x] `gh repo create workshop-os-infra-kubernetes --public`
-- [x] `gh repo create workshop-os-infra-database --public`
+- [x] `gh repo create 15SOAT-Fase1-lambda --public`
+- [x] `gh repo create 15SOAT-Fase1-kubernetes --public`
+- [x] `gh repo create 15SOAT-Fase1-database --public`
 
 ## Branch protection (4 repos)
 
 - [x] `15SOAT-Fase1`: `master` protegida (PR obrigatório, check `test` obrigatório, sem force-push/delete, `enforce_admins`)
-- [x] `workshop-os-lambda-auth`: `main` + `homolog` protegidas (check `build`)
-- [x] `workshop-os-infra-kubernetes`: `main` + `homolog` protegidas (check `terraform-validate`)
-- [x] `workshop-os-infra-database`: `main` + `homolog` protegidas (check `terraform-validate`)
+- [x] `15SOAT-Fase1-lambda`: `main` + `homolog` protegidas (check `build`)
+- [x] `15SOAT-Fase1-kubernetes`: `main` + `homolog` protegidas (check `terraform-validate`)
+- [x] `15SOAT-Fase1-database`: `main` + `homolog` protegidas (check `terraform-validate`)
 - [x] Regra aplicada: PR obrigatório, CI skeleton obrigatório, sem force-push, sem commit direto (inclusive admin — `enforce_admins=true`)
 - [x] Sequenciamento respeitado: workflow rodou 1x sem proteção antes da regra ser aplicada
 
 ## CI/CD skeleton + README por repo novo
 
-- [x] `workshop-os-lambda-auth`: CI skeleton (job `build`, placeholder) + README com seções placeholder
-- [x] `workshop-os-infra-kubernetes`: CI skeleton (`terraform fmt -check` + `validate`) + README placeholder
-- [x] `workshop-os-infra-database`: CI skeleton (`terraform fmt -check` + `validate`) + README placeholder
+- [x] `15SOAT-Fase1-lambda`: CI skeleton (job `build`, placeholder) + README com seções placeholder
+- [x] `15SOAT-Fase1-kubernetes`: CI skeleton (`terraform fmt -check` + `validate`) + README placeholder
+- [x] `15SOAT-Fase1-database`: CI skeleton (`terraform fmt -check` + `validate`) + README placeholder
 - [x] `15SOAT-Fase1`: seção "Fase 3 (em andamento)" no README raiz, apontando para `spec.md`/`backlog.md` e os 3 repos novos
 
 ## `/k8s` e `/infra`
 
 - [x] `k8s/README.md` — reframe como referência K8s local, não alvo cloud da Fase 3
 - [x] Linha equivalente na seção K8s do `README.md` raiz
+
+## Correção pós-criação: rename dos 3 repos novos
+
+Os 3 repos foram criados com o prefixo `workshop-os-` (ver acima), mas o
+usuário pediu, já em sessão posterior, um nome melhor consistente com o
+repo principal. Renomeados via `gh repo rename` (preserva histórico, PRs
+abertas, branch protection e cria redirect da URL antiga):
+
+- [x] `workshop-os-lambda-auth` → `15SOAT-Fase1-lambda`
+- [x] `workshop-os-infra-kubernetes` → `15SOAT-Fase1-kubernetes`
+- [x] `workshop-os-infra-database` → `15SOAT-Fase1-database`
+- [x] Identificadores internos de infra também renomeados (IAM role, função
+      Lambda, API Gateway, `dokploy_project`/`dokploy_application`/
+      `dokploy_domain`/`dokploy_postgres`, tags/queries do Datadog,
+      `package.json`, claim `iss` do JWT) — seguro porque nenhum `apply`
+      real tinha rodado ainda. `database_name`/`database_user` do Postgres
+      continuam `workshop_os` (nome real do banco da app, não relacionado
+      ao nome do repo).
+- [x] Referências atualizadas nos 4 repos (READMEs, ADRs, RFCs, diagramas,
+      epics, `.env.example`, `config/services.php`, `config/auth.php`) e o
+      dispatch funcional em `ci-cd.yml` (`deploy-dokploy` →
+      `15SOAT-Fase1-kubernetes`).
+- [x] ADR-002 atualizado para refletir o nome final.
 
 ## Fechamento do epic
 

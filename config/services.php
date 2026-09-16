@@ -35,7 +35,7 @@ return [
         ],
     ],
 
-    // Fase 3 — Function Serverless de auth por CPF (workshop-os-lambda-auth).
+    // Fase 3 — Function Serverless de auth por CPF (15SOAT-Fase1-lambda).
     // Ver docs/architecture/rfcs/rfc-003-cpf-auth-strategy.md.
     'lambda_auth' => [
         // Segredo compartilhado que só o Lambda conhece, enviado no header
@@ -53,7 +53,7 @@ return [
         // precisar sincronizar um segredo simétrico entre AWS e Dokploy
         // (ver RFC-003).
         'public_key' => env('CLIENT_JWT_PUBLIC_KEY'),
-        'issuer' => env('CLIENT_JWT_ISSUER', 'workshop-os-lambda-auth'),
+        'issuer' => env('CLIENT_JWT_ISSUER', '15SOAT-Fase1-lambda'),
     ],
 
 ];

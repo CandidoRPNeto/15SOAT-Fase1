@@ -79,7 +79,7 @@ verificador do CPF (checksum, sem chamada a serviço externo — consistente
 com a convenção de stubs do projeto, `CLAUDE.md` regra 7) → Lambda chama
 `POST /internal/clients/cpf-lookup` na app principal → se `exists=true` e
 `status=active`, Lambda assina um JWT RS256 (`sub`=user_id, `iss`=
-`workshop-os-lambda-auth`, `exp` curto) → devolve o token → cliente usa
+`15SOAT-Fase1-lambda`, `exp` curto) → devolve o token → cliente usa
 esse token como Bearer nas rotas de `/api/v1` (guard `client_jwt`, ver
 [ADR-008](../adrs/adr-008-jwt-validation-layer.md)).
 
@@ -92,7 +92,7 @@ esse token como Bearer nas rotas de `/api/v1` (guard `client_jwt`, ver
   `EnsureRole`/middlewares deste projeto sempre testados via feature test;
   feature test fim-a-fim gerando um par de chaves RS256 real por teste,
   não mockado).
-- `workshop-os-lambda-auth`: implementação real do Lambda (Node.js — ver
+- `15SOAT-Fase1-lambda`: implementação real do Lambda (Node.js — ver
   ADR própria se necessário) + Terraform pro Lambda/API Gateway.
 - Diagrama de sequência do fluxo completo em
   `docs/architecture/diagrams/sequence-auth.md`.

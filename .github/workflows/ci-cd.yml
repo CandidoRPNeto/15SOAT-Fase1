@@ -183,13 +183,13 @@ jobs:
           kubectl wait --for=condition=complete job/workshop-os-migrate --timeout=180s
 
   # ---- Stage 7: deploy-dokploy (Fase 3 — nuvem primária, ver ADR-001) ----
-  # Dispara o apply do workshop-os-infra-kubernetes (repo separado, CI/CD
+  # Dispara o apply do 15SOAT-Fase1-kubernetes (repo separado, CI/CD
   # próprio) via workflow_dispatch, passando a imagem recém publicada.
   # Requer o secret DOKPLOY_DISPATCH_TOKEN (PAT com escopo `workflow` sobre
-  # workshop-os-infra-kubernetes) — sem ele, o job roda e não faz nada
+  # 15SOAT-Fase1-kubernetes) — sem ele, o job roda e não faz nada
   # (skip explícito, não falha), mesmo padrão do deploy-k8s com KUBE_CONFIG.
   #
-  # Lacuna conhecida: o Terraform de workshop-os-infra-kubernetes (Epic 3)
+  # Lacuna conhecida: o Terraform de 15SOAT-Fase1-kubernetes (Epic 3)
   # só modela o ambiente production por enquanto. Um push em `homolog`
   # ainda dispara este job (environment=homolog), mas o outro repo não tem
   # recursos pra esse ambiente ainda — fica documentado como próximo passo,
@@ -208,7 +208,7 @@ jobs:
             echo "has-token=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Dispatch deploy in workshop-os-infra-kubernetes
+      - name: Dispatch deploy in 15SOAT-Fase1-kubernetes
         if: steps.check.outputs.has-token == 'true'
         env:
           GH_TOKEN: ${{ secrets.DOKPLOY_DISPATCH_TOKEN }}
@@ -219,6 +219,6 @@ jobs:
           fi
 
           gh workflow run deploy.yml \
-            --repo CandidoRPNeto/workshop-os-infra-kubernetes \
+            --repo CandidoRPNeto/15SOAT-Fase1-kubernetes \
             -f image="${{ needs.docker-build.outputs.image }}" \
             -f environment="$environment"

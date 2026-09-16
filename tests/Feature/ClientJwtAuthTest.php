@@ -42,14 +42,14 @@ class ClientJwtAuthTest extends TestCase
 
         config([
             'services.client_jwt.public_key' => $this->publicKey,
-            'services.client_jwt.issuer' => 'workshop-os-lambda-auth',
+            'services.client_jwt.issuer' => '15SOAT-Fase1-lambda',
         ]);
     }
 
     private function mintToken(array $overrides = []): string
     {
         $claims = array_merge([
-            'iss' => 'workshop-os-lambda-auth',
+            'iss' => '15SOAT-Fase1-lambda',
             'iat' => time(),
             'exp' => time() + 300,
         ], $overrides);
@@ -114,7 +114,7 @@ class ClientJwtAuthTest extends TestCase
 
         $token = JWT::encode([
             'sub' => $client->id,
-            'iss' => 'workshop-os-lambda-auth',
+            'iss' => '15SOAT-Fase1-lambda',
             'iat' => time(),
             'exp' => time() + 300,
         ], $otherPrivateKey, 'RS256');

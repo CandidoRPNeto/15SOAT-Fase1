@@ -47,7 +47,14 @@ class DatabaseSeeder extends Seeder
                 'email' => 'carlos@example.com',
                 'password' => Hash::make('password'),
                 'role' => UserRole::CLIENT,
-                'cpf_cnpj' => '111.111.111-11',
+                // CPF matematicamente válido (dígito verificador real) — os
+                // outros dois clientes usam sequências repetidas
+                // (111.111.111-11 etc.), que o Lambda de auth (Fase 3,
+                // 15SOAT-Fase1-lambda/src/cpf.ts) rejeita de propósito por
+                // nunca serem emitidas de verdade pela Receita. Carlos é o
+                // único cliente do seed que consegue autenticar pelo fluxo
+                // real de CPF — usar este CPF na demo do vídeo.
+                'cpf_cnpj' => '111.444.777-35',
                 'phone' => '(11) 98888-0001',
             ]),
             User::create([
