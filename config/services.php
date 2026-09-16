@@ -35,4 +35,25 @@ return [
         ],
     ],
 
+    // Fase 3 — Function Serverless de auth por CPF (workshop-os-lambda-auth).
+    // Ver docs/architecture/rfcs/rfc-003-cpf-auth-strategy.md.
+    'lambda_auth' => [
+        // Segredo compartilhado que só o Lambda conhece, enviado no header
+        // X-Internal-Api-Key — protege POST /internal/clients/cpf-lookup
+        // (ver EnsureInternalApiKey). Nunca commitado; sem valor aqui não
+        // há default fraco por engano — a ausência do env var faz o
+        // middleware negar tudo (ver EnsureInternalApiKey::handle).
+        'internal_api_key' => env('LAMBDA_INTERNAL_API_KEY'),
+    ],
+
+    'client_jwt' => [
+        // Chave pública RS256 do Lambda — só verifica assinatura, nunca
+        // assina. A chave privada correspondente vive só no Lambda (AWS),
+        // nunca nesta aplicação. RS256 escolhido explicitamente pra não
+        // precisar sincronizar um segredo simétrico entre AWS e Dokploy
+        // (ver RFC-003).
+        'public_key' => env('CLIENT_JWT_PUBLIC_KEY'),
+        'issuer' => env('CLIENT_JWT_ISSUER', 'workshop-os-lambda-auth'),
+    ],
+
 ];

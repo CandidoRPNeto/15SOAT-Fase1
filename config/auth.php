@@ -42,6 +42,16 @@ return [
             'driver' => 'session',
             'provider' => 'users',
         ],
+
+        // Fase 3 (evolucao_fase3): auth por CPF via JWT emitido pela
+        // Function Serverless (workshop-os-lambda-auth). Registrado como
+        // guard `viaRequest` em AppServiceProvider::boot() — aditivo ao
+        // Sanctum, não substitui o login email+senha existente (ver
+        // docs/architecture/rfcs/rfc-003-cpf-auth-strategy.md).
+        'client_jwt' => [
+            'driver' => 'client_jwt',
+            'provider' => 'users',
+        ],
     ],
 
     /*
