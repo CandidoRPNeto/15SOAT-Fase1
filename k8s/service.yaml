@@ -1,18 +1,19 @@
-# Acesso local recomendado (funciona independentemente da config do kind):
-#   kubectl port-forward svc/workshop-os-app 8000:8000
+# ClusterIP porque quem recebe o tráfego externo agora é o Traefik
+# (k8s/traefik.yaml), que assumiu o nodePort 30080 — o único mapeado para o
+# host pelo kind (infra/cluster, var.api_node_port). O caminho passou a ser
+# `http://localhost:30080` → Traefik → este Service → Pods.
 #
-# nodePort fixo em 30080 para bater com o hostPort mapeado em
-# infra/cluster (var.api_node_port) — sem isso, o kind escolheria uma porta
-# aleatória (30000-32767) e o mapeamento do cluster ficaria "solto".
+# Acesso direto, sem passar pelo gateway (útil para isolar se um problema é
+# da aplicação ou do roteamento):
+#   kubectl port-forward svc/workshop-os-app 8000:8000
 apiVersion: v1
 kind: Service
 metadata:
   name: workshop-os-app
 spec:
-  type: NodePort
+  type: ClusterIP
   selector:
     app: workshop-os-app
   ports:
     - port: 8000
       targetPort: 8000
-      nodePort: 30080

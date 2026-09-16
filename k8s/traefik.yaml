@@ -1,0 +1,145 @@
+# Traefik como gateway real do cluster local (ADR-001 descreve o Traefik como
+# o gateway da aplicação; aqui ele roda de fato, não apenas declarado).
+#
+# Por que NodePort 30080: o kind fixa os mapeamentos de porta na criação do
+# cluster (infra/cluster/main.tf, extra_port_mappings) e só `30080` está
+# mapeado para o host. Abrir 80/443 exigiria destruir e recriar o cluster.
+# Então o Traefik assume o 30080 e o Service da app vira ClusterIP — a URL
+# `http://localhost:30080` continua idêntica para os scripts e o Swagger,
+# mas agora atravessa o gateway.
+#
+# Por que imagePullPolicy IfNotPresent: os nós do kind não resolvem DNS de
+# registries externos ("lookup registry-1.docker.io ... server misbehaving").
+# A imagem entra por `kind load docker-image traefik:v3.1 --name workshop-os`,
+# mesmo caminho da imagem da aplicação.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: traefik
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: traefik
+  namespace: traefik
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: traefik
+rules:
+  # `nodes` é obrigatório, não opcional: o provider kubernetesIngress inclui
+  # um informer de nodes, e sem permissão o cache nunca sincroniza — o
+  # provider sobe sem erro visível e simplesmente não publica rota alguma
+  # (o Traefik responde 404 a tudo, como se o Ingress não existisse).
+  - apiGroups: [""]
+    resources: [services, secrets, endpoints, nodes]
+    verbs: [get, list, watch]
+  - apiGroups: [discovery.k8s.io]
+    resources: [endpointslices]
+    verbs: [get, list, watch]
+  - apiGroups: [networking.k8s.io]
+    resources: [ingresses, ingressclasses]
+    verbs: [get, list, watch]
+  - apiGroups: [networking.k8s.io]
+    resources: [ingresses/status]
+    verbs: [update]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: traefik
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: traefik
+subjects:
+  - kind: ServiceAccount
+    name: traefik
+    namespace: traefik
+---
+apiVersion: networking.k8s.io/v1
+kind: IngressClass
+metadata:
+  name: traefik
+spec:
+  controller: traefik.io/ingress-controller
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: traefik
+  namespace: traefik
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: traefik
+  template:
+    metadata:
+      labels:
+        app: traefik
+    spec:
+      serviceAccountName: traefik
+      containers:
+        - name: traefik
+          image: traefik:v3.1
+          imagePullPolicy: IfNotPresent
+          args:
+            - --entryPoints.web.address=:80
+            - --providers.kubernetesIngress
+            # Dashboard sem TLS: é um cluster local de demonstração, não fica
+            # exposto no host (só a 80 é mapeada). Acesso via port-forward.
+            - --api.dashboard=true
+            - --api.insecure=true
+            # Obrigatório para as probes: sem esta flag o endpoint /ping não
+            # é registrado e responde 404, e a liveness mata o contêiner em
+            # loop (o Traefik sobe normalmente, só a checagem falha).
+            - --ping=true
+            # Log de acesso ligado de propósito: é a evidência visível de que
+            # a requisição passou pelo gateway antes de chegar à aplicação.
+            - --accesslog=true
+            - --log.level=INFO
+          ports:
+            - name: web
+              containerPort: 80
+            - name: dashboard
+              containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /ping
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /ping
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "200m"
+              memory: "128Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: traefik
+  namespace: traefik
+spec:
+  type: NodePort
+  selector:
+    app: traefik
+  ports:
+    - name: web
+      port: 80
+      targetPort: 80
+      # Herdado do Service da app: é o único nodePort mapeado no host pelo kind.
+      nodePort: 30080
+    - name: dashboard
+      port: 8080
+      targetPort: 8080

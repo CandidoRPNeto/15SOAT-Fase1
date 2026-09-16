@@ -1,0 +1,23 @@
+# Rota do gateway para a aplicação. Fica no namespace `default` porque um
+# Ingress só enxerga Services do próprio namespace — o Traefik, que roda em
+# `traefik`, observa todos os namespaces via ClusterRole (k8s/traefik.yaml).
+#
+# Sem host: casa qualquer Host header, o que mantém `http://localhost:30080`
+# funcionando exatamente como antes para os scripts da demo, o Swagger e o
+# teste de carga.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: workshop-os-app
+spec:
+  ingressClassName: traefik
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: workshop-os-app
+                port:
+                  number: 8000
