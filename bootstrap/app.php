@@ -3,6 +3,7 @@
 use App\Http\Middleware\AssignCorrelationId;
 use App\Http\Middleware\EnsureInternalApiKey;
 use App\Http\Middleware\EnsureRole;
+use App\Http\Middleware\LogRequestLatency;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -42,6 +43,11 @@ return Application::configure(basePath: dirname(__DIR__))
         // estruturados, incluindo correlação entre requisições"
         // (evolucao_fase3, Fase 3).
         $middleware->prepend(AssignCorrelationId::class);
+
+        // Prepend depois de AssignCorrelationId = fica mais externo (mede
+        // a requisição inteira, inclusive o tempo de AssignCorrelationId)
+        // — RF de "latência das APIs" nos logs estruturados (Epic 6).
+        $middleware->prepend(LogRequestLatency::class);
 
         // Fase 3: atrás do Traefik do Dokploy (Gateway), cujo IP interno
         // não é fixo/conhecido de antemão — confiar em todos os proxies é
