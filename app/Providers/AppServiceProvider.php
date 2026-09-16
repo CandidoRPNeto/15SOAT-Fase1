@@ -14,6 +14,7 @@ use App\Services\StubMessagingService;
 use App\Services\StubPaymentService;
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
+use Illuminate\Foundation\Console\ServeCommand;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\ServiceProvider;
@@ -31,9 +32,42 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        $this->passDatadogEnvToServeCommand();
+
         Auth::viaRequest('client_jwt', function (Request $request) {
             return $this->resolveUserFromClientJwt($request);
         });
+    }
+
+    /**
+     * Repassa as variáveis DD_* ao servidor embutido do `php artisan serve`.
+     *
+     * O ServeCommand roda o `php -S` como processo filho e apaga do ambiente
+     * dele tudo que não estiver em ServeCommand::$passthroughVariables (o
+     * `in_array(...) ? [$key => $value] : [$key => false]` do próprio
+     * comando). Como é o `php -S` que atende TODAS as requisições HTTP, sem
+     * isto ele perde DD_TRACE_AGENT_URL/DD_AGENT_HOST e o sidecar do dd-trace
+     * cai no default `localhost:8126` — "Connection refused" dentro do
+     * container e nenhum trace de requisição web chega ao Agent.
+     *
+     * A falha é silenciosa: a extensão ddtrace vem via INI, não via ambiente,
+     * então continua carregada e os spans seguem sendo gerados — apenas nunca
+     * são entregues.
+     *
+     * Exemplo: com DD_TRACE_AGENT_URL=http://172.22.0.1:8126 no ambiente, o
+     * `php -S` passa a enxergar essa variável e os traces chegam ao Agent.
+     */
+    private function passDatadogEnvToServeCommand(): void
+    {
+        foreach (array_keys(getenv()) as $name) {
+            if (! str_starts_with((string) $name, 'DD_')) {
+                continue;
+            }
+
+            if (! in_array($name, ServeCommand::$passthroughVariables, true)) {
+                ServeCommand::$passthroughVariables[] = $name;
+            }
+        }
     }
 
     /**
