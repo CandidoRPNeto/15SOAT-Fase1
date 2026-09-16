@@ -1,5 +1,6 @@
 <?php
 
+use Monolog\Formatter\JsonFormatter;
 use Monolog\Handler\NullHandler;
 use Monolog\Handler\StreamHandler;
 use Monolog\Handler\SyslogUdpHandler;
@@ -102,6 +103,24 @@ return [
                 'stream' => 'php://stderr',
             ],
             'formatter' => env('LOG_STDERR_FORMATTER'),
+            'processors' => [PsrLogMessageProcessor::class],
+        ],
+
+        // Fase 3 (evolucao_fase3): "logs estruturados (JSON), incluindo
+        // correlação entre requisições" — request_id vem de
+        // App\Http\Middleware\AssignCorrelationId via Log::withContext().
+        // stderr (não arquivo) porque o Dokploy/Docker coleta stdout/stderr
+        // do container; é isso que o Datadog Agent (Epic 6) vai consumir.
+        // Ativado via LOG_CHANNEL=json no ambiente cloud — local continua
+        // 'stack'/'single' (legível), sem mudar o default de dev.
+        'json' => [
+            'driver' => 'monolog',
+            'level' => env('LOG_LEVEL', 'debug'),
+            'handler' => StreamHandler::class,
+            'handler_with' => [
+                'stream' => 'php://stderr',
+            ],
+            'formatter' => JsonFormatter::class,
             'processors' => [PsrLogMessageProcessor::class],
         ],
 

@@ -2,9 +2,9 @@ name: CI/CD
 
 on:
   push:
-    branches: [master]
+    branches: [master, homolog]
   pull_request:
-    branches: [master]
+    branches: [master, homolog]
 
 permissions:
   contents: read
@@ -181,3 +181,44 @@ jobs:
           kubectl delete job workshop-os-migrate --ignore-not-found
           kubectl apply -f k8s/migrate-job.yaml
           kubectl wait --for=condition=complete job/workshop-os-migrate --timeout=180s
+
+  # ---- Stage 7: deploy-dokploy (Fase 3 — nuvem primária, ver ADR-001) ----
+  # Dispara o apply do workshop-os-infra-kubernetes (repo separado, CI/CD
+  # próprio) via workflow_dispatch, passando a imagem recém publicada.
+  # Requer o secret DOKPLOY_DISPATCH_TOKEN (PAT com escopo `workflow` sobre
+  # workshop-os-infra-kubernetes) — sem ele, o job roda e não faz nada
+  # (skip explícito, não falha), mesmo padrão do deploy-k8s com KUBE_CONFIG.
+  #
+  # Lacuna conhecida: o Terraform de workshop-os-infra-kubernetes (Epic 3)
+  # só modela o ambiente production por enquanto. Um push em `homolog`
+  # ainda dispara este job (environment=homolog), mas o outro repo não tem
+  # recursos pra esse ambiente ainda — fica documentado como próximo passo,
+  # não fingido como implementado.
+  deploy-dokploy:
+    needs: docker-build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    steps:
+      - name: Check DOKPLOY_DISPATCH_TOKEN secret
+        id: check
+        run: |
+          if [ -n "${{ secrets.DOKPLOY_DISPATCH_TOKEN }}" ]; then
+            echo "has-token=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has-token=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Dispatch deploy in workshop-os-infra-kubernetes
+        if: steps.check.outputs.has-token == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.DOKPLOY_DISPATCH_TOKEN }}
+        run: |
+          environment="production"
+          if [ "${{ github.ref }}" = "refs/heads/homolog" ]; then
+            environment="homolog"
+          fi
+
+          gh workflow run deploy.yml \
+            --repo CandidoRPNeto/workshop-os-infra-kubernetes \
+            -f image="${{ needs.docker-build.outputs.image }}" \
+            -f environment="$environment"
