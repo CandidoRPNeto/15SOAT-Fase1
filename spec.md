@@ -11,7 +11,12 @@ Entry point for any spec-driven action: starting or closing an epic, adding a ru
 
 ## Epic queue
 
-- `ep-multirepo-foundation.md` — Fase 3 Epic 1: multi-repo foundation + branch protection
+- `ep-multirepo-foundation.md` — Fase 3 Epic 1: multi-repo foundation + branch protection (PR #1 open, merge pending)
+- `ep-managed-database-iac.md` — Fase 3 Epic 2: managed Postgres IaC (`workshop-os-infra-database`)
+
+Both in flight at once by explicit request (stacked branches, PRs merged in
+order later) rather than the usual one-at-a-time sequencing — see each
+`ep-*.md`'s "nota de sequenciamento".
 
 ## Epic lifecycle
 
