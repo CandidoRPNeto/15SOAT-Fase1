@@ -29,14 +29,11 @@ class ClientJwtAuthTest extends TestCase
     {
         parent::setUp();
 
-        $keyPair = openssl_pkey_new([
-            'private_key_bits' => 2048,
-            'private_key_type' => OPENSSL_KEYTYPE_RSA,
-        ]);
+        $keyPair = $this->newRsaKeyPair();
         // openssl_pkey_export() recebe o 2º argumento por referência — não
         // aceita escrever direto numa typed property ainda não
         // inicializada, daí a variável local.
-        openssl_pkey_export($keyPair, $privateKey);
+        openssl_pkey_export($keyPair, $privateKey, null, $this->opensslOptions());
         $this->privateKey = $privateKey;
         $this->publicKey = openssl_pkey_get_details($keyPair)['key'];
 
@@ -44,6 +41,25 @@ class ClientJwtAuthTest extends TestCase
             'services.client_jwt.public_key' => $this->publicKey,
             'services.client_jwt.issuer' => '15SOAT-Fase1-lambda',
         ]);
+    }
+
+    /**
+     * Generates an RSA key pair using a bundled OpenSSL config, so the test
+     * does not depend on the host's /etc/ssl/openssl.cnf.
+     */
+    private function newRsaKeyPair(): \OpenSSLAsymmetricKey
+    {
+        return openssl_pkey_new([
+            'private_key_bits' => 2048,
+            'private_key_type' => OPENSSL_KEYTYPE_RSA,
+            ...$this->opensslOptions(),
+        ]);
+    }
+
+    /** @return array{config: string} */
+    private function opensslOptions(): array
+    {
+        return ['config' => base_path('tests/Fixtures/openssl-minimal.cnf')];
     }
 
     private function mintToken(array $overrides = []): string
@@ -106,11 +122,8 @@ class ClientJwtAuthTest extends TestCase
     {
         $client = User::factory()->client()->create();
 
-        $otherKeyPair = openssl_pkey_new([
-            'private_key_bits' => 2048,
-            'private_key_type' => OPENSSL_KEYTYPE_RSA,
-        ]);
-        openssl_pkey_export($otherKeyPair, $otherPrivateKey);
+        $otherKeyPair = $this->newRsaKeyPair();
+        openssl_pkey_export($otherKeyPair, $otherPrivateKey, null, $this->opensslOptions());
 
         $token = JWT::encode([
             'sub' => $client->id,

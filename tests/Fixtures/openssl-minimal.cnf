@@ -1,0 +1,7 @@
+# Minimal OpenSSL config for test key generation. openssl_pkey_new() reads
+# the host's /etc/ssl/openssl.cnf by default; on OpenSSL 3 hosts (e.g. Arch)
+# a missing v3_ca section there raises an ErrorException under PHPUnit,
+# failing every JWT test for reasons unrelated to the code under test.
+[ req ]
+distinguished_name = req_distinguished_name
+[ req_distinguished_name ]
