@@ -1,0 +1,80 @@
+Fonte: "SOAT - Fase 4 - Tech challenge.pdf" (transcrição dos requisitos; o PDF é
+o original, este arquivo é a referência que os epics citam).
+
+Desafio
+A oficina atingiu escala nacional com múltiplas filiais. Volume de OS,
+interações entre áreas (atendimento, diagnóstico, execução e cobrança),
+resiliência e tolerância a falhas aumentaram. A aplicação precisa ser
+refatorada para microsserviços independentes e especializados, garantindo
+consistência das transações críticas (criação de OS, aprovações, pagamentos)
+com Saga Pattern e rollback seguro em caso de falha.
+
+Objetivo
+Refatorar a aplicação para arquitetura de microsserviços com gestão
+transacional distribuída e automação completa de build, testes e deploy.
+
+Requisitos obrigatórios
+
+Separação em Microsserviços
+● No mínimo 3 microsserviços independentes, cada um com seu próprio
+repositório, infraestrutura e banco de dados.
+● Exemplos sugeridos:
+○ OS Service: abertura da OS; atualização de status; consulta de status e
+histórico.
+○ Billing Service: geração e envio de orçamentos para aprovação; registro e
+verificação de pagamentos (integração com Mercado Pago); atualização do
+status da OS após pagamento.
+○ Execução e Produção: fila de execução da OS; atualização de status durante
+diagnóstico e reparos; comunicar finalização ao OS Service.
+● Cada microsserviço com banco próprio; obrigatório pelo menos um banco
+relacional (SQL) e pelo menos um não relacional (NoSQL).
+
+Comunicação entre Microsserviços
+● APIs RESTful síncronas (quando necessário).
+● Mensageria assíncrona (RabbitMQ, Kafka, SQS etc.) para eventos e
+integração desacoplada.
+● Nenhum serviço pode acessar diretamente o banco de outro serviço.
+
+Saga Pattern
+● Coordenar o fluxo transacional das OS (ex.: abrir OS → gerar orçamento →
+aguardar aprovação → enviar para execução).
+● Rollback e compensação em caso de falha em qualquer etapa.
+● Orquestrado (orquestrador central) ou coreografado (eventos).
+● Documentar a escolha e justificar no README.
+
+Testes e Qualidade
+● Testes unitários em todos os microsserviços.
+● Pelo menos um fluxo completo testado com BDD.
+● Cobertura mínima de 80% por serviço.
+● Validação de qualidade via SonarQube ou similar no CI.
+
+CI/CD Automatizado (por microsserviço)
+● Pipeline independente: build, testes automatizados, verificação de
+qualidade, deploy automatizado em Kubernetes.
+● Repositórios protegidos (branch main com PR obrigatório e checagens
+automáticas).
+
+Infraestrutura
+● Cada microsserviço em seu próprio repositório.
+● Deploy automatizado para Kubernetes.
+● Mensageria para orquestração ou coreografia.
+● Monitoramento e observabilidade já implementados na Fase 3.
+
+Entregáveis
+
+Repositórios Git (um por microsserviço):
+● Código-fonte; Dockerfile e manifestos Kubernetes; pipelines de CI/CD;
+evidências de cobertura (prints ou links no README); documentação da
+arquitetura do serviço; Swagger ou collection Postman atualizada.
+
+Vídeo (YouTube/Vimeo, público ou não listado, até 15 minutos) demonstrando:
+● Fluxo completo de uma OS passando pelos microsserviços.
+● Execução do Saga Pattern e tratamento de falhas.
+● Deploy automatizado de pelo menos um microsserviço com validação de testes.
+● Monitoramento e rastreamento dos fluxos distribuídos.
+
+PDF no portal:
+● Nome e identificação dos participantes; links dos repositórios; link do
+vídeo; diagrama geral da arquitetura final (microsserviços, bancos,
+comunicação); estratégia do Saga Pattern; justificativa da divisão dos
+microsserviços e tecnologias.

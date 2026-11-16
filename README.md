@@ -123,12 +123,19 @@ Detalhes de cada estágio em [`.github/workflows/ci-cd.yml`](.github/workflows/c
 
 ---
 
+## Fase 4 — microsserviços + Saga (em andamento)
+
+Divisão em OS Service (este repo), Billing Service e Execution Service, com
+Saga orquestrada sobre RabbitMQ. Requisitos em [`evolucao_fase4`](evolucao_fase4),
+epics em [`spec.md`](spec.md), decisões em
+[RFC-004](docs/architecture/rfcs/rfc-004-microservices-split.md) e ADR-010 a ADR-015.
+
 ## Fase 3 — operação corporativa
 
 Evolução para nível corporativo: API Gateway, autenticação via CPF emitindo
 JWT a partir de uma Function Serverless, split em 4 repositórios com CI/CD
 e branch protection próprios, banco gerenciado, observabilidade via
-Datadog. Requisito completo em [`evolucao_fase3`](evolucao_fase3).
+Datadog. Requisito original: `git show 91319ed:evolucao_fase3`.
 
 **Status**: arquitetura, código e Terraform completos e validados
 localmente (testes reais + `terraform validate` contra os providers reais
@@ -152,7 +159,7 @@ Detalhes da divisão em [ADR-002](docs/architecture/adrs/adr-002-four-repo-split
 
 ### Decomposição e decisões
 
-Epics e dependências em [`spec.md`](spec.md)/[`backlog.md`](backlog.md).
+Epics da Fase 3 encerrados (ver [`history.md`](history.md)); Fase 4 em [`spec.md`](spec.md).
 RFCs/ADRs completos em [`docs/architecture/`](docs/architecture/):
 [RFC-001](docs/architecture/rfcs/rfc-001-cloud-strategy.md) (nuvem),
 [RFC-002](docs/architecture/rfcs/rfc-002-managed-database-strategy.md) (banco),

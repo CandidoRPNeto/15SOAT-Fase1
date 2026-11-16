@@ -8,7 +8,7 @@ Laravel 13 REST API for a mechanic workshop: clients, vehicles, services, items 
 
 ## Fase 2 — hexagonal refactor + containerization + local K8s
 
-Source: [`evolucao_fase2`](evolucao_fase2). Detailed spec/plan/tasks: [`docs/specs/fase2/`](docs/specs/fase2/) (nested convention, superseded by this flat one from Fase 3 onward — kept as-is, not migrated).
+Source requirement and the nested spec/plan/tasks docs were local-only (git-ignored) and removed at the Fase 4 spec reset.
 
 - Light hexagonal layering: `app/Domain/ServiceOrder`, `app/Application/{ServiceOrder,Ports}`, `app/Infrastructure/{Persistence/Eloquent,Messaging}`.
 - New/changed OS APIs: open OS with services+items in one payload, quick status lookup, budget approval via webhook, priority-ordered listing, status update via e-mail (stub).
@@ -18,11 +18,17 @@ Source: [`evolucao_fase2`](evolucao_fase2). Detailed spec/plan/tasks: [`docs/spe
 - Single CI/CD workflow (`.github/workflows/ci-cd.yml`): test (PHPUnit, coverage gate `--min=80`) → docker build/push to GHCR → conditional deploy-k8s/deploy-db (skipped, not failed, when `KUBE_CONFIG` secret is absent — no real cloud cluster existed yet).
 - Everything in Fase 2 ran locally (`kind`) or statically-validated only; never deployed to a real cloud.
 
-## Fase 3 — corporate-grade cloud operation (in progress)
+## Fase 3 — corporate-grade cloud operation (closed)
 
-Source: [`evolucao_fase3`](evolucao_fase3). See `spec.md`'s epic queue and `backlog.md` for the epic breakdown. Architecture decisions land in `docs/architecture/{rfcs,adrs}/` as each epic makes them, not batched at the end.
+Source: `evolucao_fase3`, removed at the Fase 4 spec reset — read it with `git show 91319ed:evolucao_fase3`. Epic files (`ep-*.md`) and `backlog.md` were removed at the same point; `git show 91319ed:<file>` recovers any of them.
 
-Key decisions already made (see `docs/architecture/adrs/adr-001-dokploy-as-cloud.md` and `rfc-001-cloud-strategy.md` for full rationale):
-- Dokploy (self-hosted PaaS) is the primary cloud, standing in for the "Kubernetes cluster with scalability" requirement via its own orchestrator (Swarm/Compose) — no real cloud K8s cluster provisioned. `/k8s` and `/infra` from Fase 2 are kept as the literal local K8s reference implementation, not removed.
-- The CPF-auth Function Serverless is real AWS Lambda (free tier) — the one piece on a second cloud.
-- Project splits into 4 repos: this one (`15SOAT-Fase1`, unchanged) plus `15SOAT-Fase1-lambda`, `15SOAT-Fase1-kubernetes`, `15SOAT-Fase1-database`.
+- Dokploy (self-hosted PaaS) chosen as primary cloud ([ADR-001](docs/architecture/adrs/adr-001-dokploy-as-cloud.md)); `/k8s` + `/infra` kept as the local kind reference ([ADR-003](docs/architecture/adrs/adr-003-keep-local-k8s-reference.md)).
+- 4 repos ([ADR-002](docs/architecture/adrs/adr-002-four-repo-split.md)): `15SOAT-Fase1` (app), `15SOAT-Fase1-lambda` (CPF auth → RS256 JWT), `15SOAT-Fase1-kubernetes` (Terraform Dokploy app/domain/Datadog), `15SOAT-Fase1-database` (Terraform Dokploy Postgres). Branch protection + CI on all.
+- App: `client_jwt` guard additive to Sanctum ([ADR-008](docs/architecture/adrs/adr-008-jwt-validation-layer.md)), `/internal/clients/cpf-lookup` for the Lambda, correlation ID + latency headers, JSON logs.
+- Observability: Datadog Agent + monitors ([ADR-009](docs/architecture/adrs/adr-009-datadog-agent-placement.md)); dd-trace-php inside the image.
+- Video ran fully local: kind cluster `workshop-os`, Traefik as in-cluster gateway, simulated Lambda/API Gateway. No real `terraform apply` against Dokploy/AWS.
+- PRs were left stacked (one per epic) for the dev to merge in order.
+
+## Fase 4 — microservices + Saga (in progress)
+
+See `spec.md`.

@@ -6,7 +6,7 @@
 
 ## Contexto
 
-Qual problema motiva esta RFC? Que requisito de `evolucao_fase3` (ou outro)
+Qual problema motiva esta RFC? Que requisito de `evolucao_fase4` (ou outro)
 está em jogo?
 
 ## Opções consideradas

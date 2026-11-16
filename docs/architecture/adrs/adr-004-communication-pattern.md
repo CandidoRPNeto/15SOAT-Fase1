@@ -1,6 +1,6 @@
 # ADR-004: Padrão de comunicação — REST/JSON síncrono
 
-**Status**: Aceita
+**Status**: Superada por [ADR-011](adr-011-rabbitmq-async-messaging.md) (Fase 4)
 **Data**: 2026-09-02
 
 ## Contexto
@@ -15,7 +15,7 @@ inconsistência entre repositórios.
 REST sobre HTTPS com payloads JSON é o padrão default para toda comunicação
 síncrona entre componentes da Fase 3 (Lambda → API interna da aplicação
 principal, se essa opção for a escolhida em
-[RFC-003](../../../backlog.md), CI/CD → APIs do Dokploy). Nenhum broker de
+[RFC-003](../rfcs/rfc-003-cpf-auth-strategy.md), CI/CD → APIs do Dokploy). Nenhum broker de
 mensagens (SQS, RabbitMQ, Kafka) é introduzido nesta fase — não há
 requisito que justifique processamento assíncrono desacoplado além do que
 os jobs de fila já existentes (`SendFineNotificationJob`, driver

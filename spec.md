@@ -1,39 +1,53 @@
 # spec.md
 
-Entry point for any spec-driven action: starting or closing an epic, adding a rule, checking the backlog, or resolving a gap `CLAUDE.md` doesn't cover. Read this file first. Descend into a linked file only when the specific need arises — don't read speculatively.
+Entry point for any spec-driven action: starting or closing an epic, adding a rule, or resolving a gap `CLAUDE.md` doesn't cover. Read this file first. Descend into a linked file only when the specific need arises — don't read speculatively.
+
+## Source requirement
+
+- [`evolucao_fase4`](evolucao_fase4) — Fase 4 requirements (microservices, Saga, per-service CI/CD). Every epic below traces back to it.
 
 ## Files
 
-- `backlog.md` — future epic ideas, not yet started. Read only when scoping the next epic.
-- `rules.md` — decision log. A rule is added only when the dev corrects a proposed approach and explicitly asks to save it (e.g. "use X, not Y — save that"). Consult only when a question isn't answered by this file, the active `ep-*.md`, or `CLAUDE.md`. If `rules.md` doesn't answer it either, ask the dev — never guess.
-- `history.md` — summary of what already exists (past epics, technologies, decisions). Read only when explicitly asked to retrieve something from the past. Never load by default.
-- `ep-<name>.md` — the active epic's task list + references to code and other `.md` files. One file per epic in flight.
+- `rules.md` — decision log. A rule is added only when the dev corrects a proposed approach and explicitly asks to save it. Consult only when a question isn't answered by this file, the active `ep-*.md`, or `CLAUDE.md`. If `rules.md` doesn't answer it either, ask the dev — never guess.
+- `history.md` — summary of past phases. Read only when explicitly asked to retrieve something from the past.
+- `ep-<name>.md` — an active epic's task list + references to code and other `.md` files. One file per epic in flight.
+- `docs/architecture/{rfcs,adrs,diagrams}/` — decisions and diagrams. Fase 4 decisions: RFC-004, ADR-010..015.
 
-## Epic queue
+## Fase 4 target (summary — details live in the ADRs)
 
-- `ep-multirepo-foundation.md` — Fase 3 Epic 1: multi-repo foundation + branch protection (PR #1 open, merge pending)
-- `ep-managed-database-iac.md` — Fase 3 Epic 2: managed Postgres IaC (`15SOAT-Fase1-database`)
-- `ep-app-infra-iac.md` — Fase 3 Epic 3: app/domain IaC (`15SOAT-Fase1-kubernetes`)
-- `ep-cloud-adaptation.md` — Fase 3 Epic 4: app cloud adaptation + deploy wiring
-- `ep-cpf-auth.md` — Fase 3 Epic 5: CPF auth Lambda + API Gateway + JWT guard
-- `ep-observability.md` — Fase 3 Epic 6: Datadog Agent + monitors
-- `ep-final-docs.md` — Fase 3 Epic 7: component diagram + README consolidation
+| Service | Repo | DB | Owns |
+|---|---|---|---|
+| OS Service | `15SOAT-Fase1` | PostgreSQL | auth, clients, vehicles, catalog/stock, service orders, status history, saga orchestrator |
+| Billing Service | `15SOAT-Fase1-billing` | PostgreSQL | budgets, approval, payments (Mercado Pago test credentials) |
+| Execution Service | `15SOAT-Fase1-execution` | MongoDB | diagnosis/repair queue, execution timeline |
+| Platform | `15SOAT-Fase1-kubernetes` | — | RabbitMQ, Traefik (ForwardAuth), self-hosted runner setup, demo scripts |
 
-All seven in flight at once by explicit request (stacked branches, PRs
-merged in order later) rather than the usual one-at-a-time sequencing —
-see each `ep-*.md`'s "nota de sequenciamento". This is the last epic in
-`backlog.md` — once merged, `backlog.md`'s Fase 3 queue is empty and its
-summary moves to `history.md` (see `ep-final-docs.md`'s closing task).
+- Saga: orchestrated, in OS Service — [ADR-010](docs/architecture/adrs/adr-010-saga-orchestration.md).
+- Messaging: RabbitMQ + outbox/inbox — [ADR-011](docs/architecture/adrs/adr-011-rabbitmq-async-messaging.md).
+- Deploy: GitHub Actions self-hosted runner → local kind cluster `workshop-os` — [ADR-014](docs/architecture/adrs/adr-014-self-hosted-runner-kind.md).
+
+## Epic queue (Fase 4)
+
+Order reflects dependencies. Branch per epic per repo: `feature/2026/11/<epic>`. F4-01 (spec reset, RFC-004, ADR-010..015) is done.
+
+2. `ep-f4-02-platform.md` — RabbitMQ, Traefik + ForwardAuth, namespaces, runner setup script, demo scripts (`15SOAT-Fase1-kubernetes`).
+3. `ep-f4-03-os-messaging-saga.md` — bus port/adapter, outbox/inbox, saga orchestrator, watchdog, stock reservation, `/auth/verify`, `/history`, Behat (`15SOAT-Fase1`).
+4. `ep-f4-04-billing-service.md` — new repo; budgets, approval, Mercado Pago gateway, payment polling.
+5. `ep-f4-05-execution-service.md` — new repo; MongoDB queue, diagnosis/repair endpoints, timeline.
+6. `ep-f4-06-k8s-cicd.md` — per-service `k8s/`, CI/CD workflows, SonarCloud, branch protection, first runner deploy.
+7. `ep-f4-07-observability.md` — dd-trace per service, saga logs, Datadog monitors, distributed trace check.
+8. `ep-f4-08-docs-delivery.md` — diagrams + render script, `docs/fase4/entrega.md`, READMEs, Postman, coverage evidence, video `roteiro.md`.
 
 ## Epic lifecycle
 
-1. Starting an epic: create `ep-<name>.md` — tasks plus references to code/other files only, no duplicated business-rule prose. Add one line to the queue above.
-2. Working an epic: update `ep-<name>.md` task statuses as you go.
-3. Finishing an epic: once every task is done and verified, delete `ep-<name>.md` and remove its line from the queue above. `git log` is the record of what happened. Only add to `rules.md` if the dev explicitly asks a decision from this epic be saved as a standing rule.
+1. Starting an epic: create `ep-<name>.md` — tasks plus references to code/other files only, no duplicated business-rule prose.
+2. Working an epic: update task statuses as you go.
+3. Finishing an epic: once every task is done and verified, delete `ep-<name>.md` and remove its line from the queue above. `git log` is the record. Only add to `rules.md` if the dev explicitly asks.
+4. Closing Fase 4: summarize it in `history.md` (done in `ep-f4-08`).
 
 ## File-size rule
 
-Any file here except `ep-*.md` (temporary by design) that exceeds ~300 lines gets split: move the overflow into `<file>-<topic>.md`, and leave exactly one line in the main file — a link to the sub-file plus a one-sentence summary. Read the head file by default; open a sub-file only when its specific topic is actually needed.
+Any file here except `ep-*.md` that exceeds ~300 lines gets split: move the overflow into `<file>-<topic>.md`, leaving one line in the main file — a link plus a one-sentence summary.
 
 ## Language
 
