@@ -1,0 +1,114 @@
+asyncapi: 3.0.0
+info:
+  title: OS Service — saga commands
+  version: 1.0.0
+  description: |
+    Commands the OS Service orchestrator publishes (ADR-010, ADR-011).
+    The producer owns its contract: replies are documented in the Billing
+    and Execution repositories' asyncapi.yaml.
+    Every message uses the envelope below; the routing key equals `type`.
+defaultContentType: application/json
+servers:
+  kind:
+    host: rabbitmq.platform.svc.cluster.local:5672
+    protocol: amqp
+channels:
+  workshop:
+    address: workshop
+    description: Topic exchange; routing key = message type.
+    messages:
+      enqueueDiagnosis: { $ref: '#/components/messages/enqueueDiagnosis' }
+      enqueueRepair: { $ref: '#/components/messages/enqueueRepair' }
+      cancelTask: { $ref: '#/components/messages/compensation' }
+      createBudget: { $ref: '#/components/messages/createBudget' }
+      voidBudget: { $ref: '#/components/messages/compensation' }
+      requestPayment: { $ref: '#/components/messages/requestPayment' }
+operations:
+  sendSagaCommands:
+    action: send
+    channel: { $ref: '#/channels/workshop' }
+components:
+  schemas:
+    Envelope:
+      type: object
+      required: [message_id, type, saga_id, correlation_id, occurred_at, payload]
+      properties:
+        message_id: { type: string, format: uuid, description: Deduplication key (inbox). }
+        type: { type: string, description: Routing key. }
+        saga_id: { type: string, format: uuid, description: Echo it back in every reply. }
+        correlation_id: { type: string, description: Request id that started the saga. }
+        occurred_at: { type: string, format: date-time }
+        payload: { type: object }
+  messages:
+    enqueueDiagnosis:
+      name: cmd.execution.enqueue_diagnosis
+      summary: Queue the diagnosis task. Reply evt.execution.diagnosis_enqueued | diagnosis_enqueue_failed.
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - properties:
+              payload:
+                type: object
+                required: [service_order_id, service_order_number]
+                properties:
+                  service_order_id: { type: integer }
+                  service_order_number: { type: string }
+                  vehicle_id: { type: integer }
+                  notes: { type: [string, 'null'] }
+    enqueueRepair:
+      name: cmd.execution.enqueue_repair
+      summary: Queue the repair after approval + stock reservation. Reply evt.execution.repair_enqueued | repair_enqueue_failed.
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - properties:
+              payload:
+                type: object
+                required: [service_order_id, service_order_number]
+    createBudget:
+      name: cmd.billing.create_budget
+      summary: Create the budget from a price snapshot. Reply evt.billing.budget_created {budget_id, total} | budget_creation_failed {reason}.
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - properties:
+              payload:
+                type: object
+                required: [service_order_id, service_order_number, client_id, lines, total]
+                properties:
+                  service_order_id: { type: integer }
+                  service_order_number: { type: string }
+                  client_id: { type: integer }
+                  total: { type: number }
+                  diagnosis_notes: { type: [string, 'null'] }
+                  lines:
+                    type: array
+                    items:
+                      type: object
+                      required: [kind, reference_id, description, quantity, unit_price]
+                      properties:
+                        kind: { enum: [service, item] }
+                        reference_id: { type: integer }
+                        description: { type: string }
+                        quantity: { type: integer }
+                        unit_price: { type: number }
+    requestPayment:
+      name: cmd.billing.request_payment
+      summary: Create the Mercado Pago checkout. Reply evt.billing.payment_requested, later evt.billing.payment_confirmed.
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - properties:
+              payload:
+                type: object
+                required: [service_order_id, service_order_number, client_id, amount]
+    compensation:
+      name: cmd.execution.cancel_task / cmd.billing.void_budget
+      summary: Compensation; must be idempotent and succeed even if the target does not exist.
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - properties:
+              payload:
+                type: object
+                required: [service_order_id, reason]

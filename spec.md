@@ -28,10 +28,9 @@ Entry point for any spec-driven action: starting or closing an epic, adding a ru
 
 ## Epic queue (Fase 4)
 
-Order reflects dependencies. Branch per epic per repo: `feature/2026/11/<epic>`. F4-01 (spec reset, RFC-004, ADR-010..015) is done.
+Order reflects dependencies. Branch per epic per repo: `feature/2026/11/<epic>`. Done: F4-01 (spec reset, RFC-004, ADR-010..015), F4-03 (OS messaging + saga; BDD runs in PHPUnit via `behat/gherkin` because Behat 3 does not install on Symfony 8).
 
 2. `ep-f4-02-platform.md` — RabbitMQ, Traefik + ForwardAuth, namespaces, runner setup script, demo scripts (`15SOAT-Fase1-kubernetes`).
-3. `ep-f4-03-os-messaging-saga.md` — bus port/adapter, outbox/inbox, saga orchestrator, watchdog, stock reservation, `/auth/verify`, `/history`, Behat (`15SOAT-Fase1`).
 4. `ep-f4-04-billing-service.md` — new repo; budgets, approval, Mercado Pago gateway, payment polling.
 5. `ep-f4-05-execution-service.md` — new repo; MongoDB queue, diagnosis/repair endpoints, timeline.
 6. `ep-f4-06-k8s-cicd.md` — per-service `k8s/`, CI/CD workflows, SonarCloud, branch protection, first runner deploy.

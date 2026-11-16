@@ -30,8 +30,10 @@ enum ServiceOrderStatus: string
     public function allowedTransitions(): array
     {
         return match ($this) {
-            self::RECEIVED => [self::IN_DIAGNOSIS],
-            self::IN_DIAGNOSIS => [self::AWAITING_APPROVAL],
+            // CANCELLED from RECEIVED/IN_DIAGNOSIS: saga compensation when the
+            // diagnosis cannot be queued or the budget cannot be created (ADR-010).
+            self::RECEIVED => [self::IN_DIAGNOSIS, self::CANCELLED],
+            self::IN_DIAGNOSIS => [self::AWAITING_APPROVAL, self::CANCELLED],
             self::AWAITING_APPROVAL => [self::APPROVED, self::CANCELLED],
             self::APPROVED => [self::IN_EXECUTION],
             self::IN_EXECUTION => [self::FINALIZED],

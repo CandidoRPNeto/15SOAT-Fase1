@@ -12,10 +12,13 @@ para a saga entre 3 serviços.
 ## Decisão
 
 - **Broker**: RabbitMQ no namespace `platform` do kind.
-- **Topologia**:
-  - exchange `workshop.commands` (direct): uma fila por serviço (`os.inbox`, `billing.inbox`, `execution.inbox`);
-  - exchange `workshop.events` (topic): respostas e eventos;
-  - DLQ por fila.
+- **Topologia**: uma exchange topic `workshop` e uma fila por serviço
+  (`os.inbox`, `billing.inbox`, `execution.inbox`), cada uma com DLQ via
+  exchange `workshop.dlx`. A routing key é o tipo da mensagem:
+  - comandos `cmd.<destino>.<verbo>` (ex.: `cmd.billing.create_budget`);
+  - eventos/respostas `evt.<produtor>.<fato>` (ex.: `evt.execution.repair_started`).
+  O OS Service assina `evt.execution.*` e `evt.billing.*`; Billing assina
+  `cmd.billing.*`; Execution assina `cmd.execution.*`.
 - **Envelope**: `message_id`, `type`, `saga_id`, `correlation_id`, `occurred_at`, `payload`.
 - **Transactional outbox**: o serviço grava a mensagem na mesma transação do
   dado de negócio, e `outbox:relay` publica em seguida. Isso evita "gravou e

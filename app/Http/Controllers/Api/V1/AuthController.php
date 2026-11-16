@@ -84,4 +84,27 @@ class AuthController extends Controller
     {
         return response()->json(new UserResource($request->user()));
     }
+
+    #[OA\Get(
+        path: '/api/v1/auth/verify',
+        summary: 'Valida o token e devolve a identidade em headers (alvo do ForwardAuth do Traefik)',
+        description: 'Usado pelo gateway antes de rotear para Billing/Execution (ADR-013). Aceita token Sanctum '
+            .'ou JWT do Lambda de CPF. Os headers X-User-* são copiados pelo Traefik para a requisição de destino.',
+        security: [['sanctum' => []]],
+        tags: ['Auth'],
+        responses: [
+            new OA\Response(response: 200, description: 'Token válido; headers X-User-Id, X-User-Role, X-User-Client-Id'),
+            new OA\Response(response: 401, description: 'Não autenticado'),
+        ]
+    )]
+    public function verify(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        return response()->json(['id' => $user->id, 'role' => $user->role->value])->withHeaders([
+            'X-User-Id' => (string) $user->id,
+            'X-User-Role' => $user->role->value,
+            'X-User-Client-Id' => $user->isClient() ? (string) $user->id : '',
+        ]);
+    }
 }

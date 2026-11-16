@@ -3,7 +3,7 @@ FROM php:8.4-cli AS deps
 
 RUN apt-get update && apt-get install -y \
     git curl zip unzip libpq-dev libzip-dev libxml2-dev libonig-dev \
-    && docker-php-ext-install pdo pdo_pgsql pgsql mbstring xml bcmath zip \
+    && docker-php-ext-install pdo pdo_pgsql pgsql mbstring xml bcmath zip sockets \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
@@ -32,7 +32,7 @@ FROM php:8.4-cli AS runtime
 
 RUN apt-get update && apt-get install -y \
     curl libpq-dev libzip-dev libxml2-dev libonig-dev \
-    && docker-php-ext-install pdo pdo_pgsql pgsql mbstring xml bcmath zip \
+    && docker-php-ext-install pdo pdo_pgsql pgsql mbstring xml bcmath zip sockets \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Datadog APM. O injetor single-step de host (DD_APM_INSTRUMENTATION_ENABLED=docker)

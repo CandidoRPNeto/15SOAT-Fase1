@@ -2,16 +2,19 @@
 
 namespace App\Providers;
 
+use App\Application\Ports\MessageConsumer;
+use App\Application\Ports\MessagePublisher;
+use App\Application\Ports\MessageRouter;
 use App\Application\Ports\ServiceOrderRepository;
-use App\Contracts\EmailStatusUpdateServiceInterface;
+use App\Application\Saga\SagaMessageRouter;
 use App\Contracts\MessagingServiceInterface;
-use App\Contracts\PaymentServiceInterface;
 use App\Enums\UserRole;
-use App\Infrastructure\Messaging\StubEmailStatusUpdateService;
+use App\Infrastructure\Messaging\RabbitMq\RabbitMqConnectionFactory;
+use App\Infrastructure\Messaging\RabbitMq\RabbitMqMessageConsumer;
+use App\Infrastructure\Messaging\RabbitMq\RabbitMqMessagePublisher;
 use App\Infrastructure\Persistence\Eloquent\EloquentServiceOrderRepository;
 use App\Models\User;
 use App\Services\StubMessagingService;
-use App\Services\StubPaymentService;
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
 use Illuminate\Foundation\Console\ServeCommand;
@@ -24,10 +27,18 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        $this->app->bind(PaymentServiceInterface::class, StubPaymentService::class);
         $this->app->bind(MessagingServiceInterface::class, StubMessagingService::class);
         $this->app->bind(ServiceOrderRepository::class, EloquentServiceOrderRepository::class);
-        $this->app->bind(EmailStatusUpdateServiceInterface::class, StubEmailStatusUpdateService::class);
+        $this->registerMessaging();
+    }
+
+    /** RabbitMQ adapters behind project-owned ports (ADR-011); tests swap in fakes. */
+    private function registerMessaging(): void
+    {
+        $this->app->singleton(RabbitMqConnectionFactory::class, fn () => new RabbitMqConnectionFactory(config('messaging.rabbitmq')));
+        $this->app->bind(MessageRouter::class, SagaMessageRouter::class);
+        $this->app->singleton(MessagePublisher::class, RabbitMqMessagePublisher::class);
+        $this->app->singleton(MessageConsumer::class, RabbitMqMessageConsumer::class);
     }
 
     public function boot(): void
