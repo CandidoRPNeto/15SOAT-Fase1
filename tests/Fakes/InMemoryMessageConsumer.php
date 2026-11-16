@@ -15,6 +15,9 @@ class InMemoryMessageConsumer implements MessageConsumer
     /** @var list<MessageEnvelope> */
     public array $deadLettered = [];
 
+    /** @var list<string> why each dead-lettered message failed */
+    public array $errors = [];
+
     public int $polls = 0;
 
     public function poll(callable $handler, float $timeoutSeconds): int
@@ -26,8 +29,9 @@ class InMemoryMessageConsumer implements MessageConsumer
             try {
                 $handler($envelope);
                 $handled++;
-            } catch (Throwable) {
+            } catch (Throwable $e) {
                 $this->deadLettered[] = $envelope;
+                $this->errors[] = $e::class.': '.$e->getMessage();
             }
         }
 
