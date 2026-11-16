@@ -26,7 +26,7 @@ class ServiceFactory extends Factory
         [$name, $minutes] = fake()->randomElement($services);
 
         return [
-            'name' => $name . ' ' . fake()->unique()->numberBetween(1, 9999),
+            'name' => $name.' '.fake()->unique()->numberBetween(1, 9999),
             'description' => fake()->sentence(),
             'price' => fake()->randomFloat(2, 50, 800),
             'avg_execution_minutes' => $minutes,

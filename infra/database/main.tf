@@ -28,10 +28,12 @@ locals {
 resource "kubernetes_manifest" "database" {
   for_each = {
     for doc in local.manifest_documents :
-    # kubernetes_manifest (ao contrário de `kubectl apply`) não assume o
-    # namespace "default" implicitamente — precisa vir explícito no doc.
+    # kubernetes_manifest (ao contrário de `kubectl apply`) não assume
+    # namespace implicitamente — precisa vir explícito no doc. Fase 4: o OS
+    # Service vive no namespace `os` (o kustomization.yaml injeta isso no
+    # `kubectl apply -k`; aqui é feito à mão).
     "${doc.kind}/${doc.metadata.name}" => merge(doc, {
-      metadata = merge(doc.metadata, { namespace = "default" })
+      metadata = merge(doc.metadata, { namespace = "os" })
     })
   }
 

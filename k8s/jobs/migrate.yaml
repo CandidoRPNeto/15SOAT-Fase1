@@ -1,0 +1,22 @@
+# Rendered by scripts/deploy-kind.sh (IMAGE placeholder) and re-created on
+# every deploy — Jobs are immutable, so it is not part of kustomization.yaml.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: os-migrate
+  namespace: os
+spec:
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 600
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: migrate
+          image: IMAGE
+          imagePullPolicy: IfNotPresent
+          # db:seed só popula perfis/catálogo quando vazio (DatabaseSeeder idempotente por e-mail/nome).
+          command: ["sh", "-c", "php artisan migrate --force && php artisan db:seed --force"]
+          envFrom:
+            - configMapRef: { name: os-config }
+            - secretRef: { name: os-secret }

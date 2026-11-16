@@ -1,0 +1,46 @@
+# Processos assíncronos do OS Service:
+# - bus-worker: relay do outbox + consumo de evt.execution.* / evt.billing.*
+#   (orquestrador da saga, ADR-010/011).
+# - scheduler: saga:watchdog (a cada minuto) e SendFineNotificationJob.
+# CLI tracing ligado só aqui: é o worker que publica/consome no RabbitMQ, e o
+# dd-trace propaga o contexto pelo AMQP (trace distribuído entre serviços).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: os-worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: os-worker
+  template:
+    metadata:
+      labels:
+        app: os-worker
+        tags.datadoghq.com/service: os-service
+    spec:
+      containers:
+        - name: bus-worker
+          image: os-service
+          imagePullPolicy: IfNotPresent
+          command: ["sh", "-c", "php artisan config:cache && exec php artisan bus:work --poll=1"]
+          envFrom:
+            - configMapRef: { name: os-config }
+            - secretRef: { name: os-secret }
+          env:
+            - { name: DD_TRACE_CLI_ENABLED, value: "true" }
+            - { name: DD_TRACE_GENERATE_ROOT_SPAN, value: "false" }
+            - { name: DD_TRACE_AUTO_FLUSH_ENABLED, value: "true" }
+          resources:
+            requests: { cpu: "50m", memory: "128Mi" }
+            limits: { cpu: "300m", memory: "256Mi" }
+        - name: scheduler
+          image: os-service
+          imagePullPolicy: IfNotPresent
+          command: ["sh", "-c", "php artisan config:cache && exec php artisan schedule:work"]
+          envFrom:
+            - configMapRef: { name: os-config }
+            - secretRef: { name: os-secret }
+          resources:
+            requests: { cpu: "20m", memory: "96Mi" }
+            limits: { cpu: "200m", memory: "192Mi" }

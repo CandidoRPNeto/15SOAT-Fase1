@@ -20,6 +20,12 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
+        // Fase 4: the K8s migrate Job runs `db:seed` on every deploy; seeding
+        // only an empty database keeps redeploys idempotent.
+        if (User::query()->exists()) {
+            return;
+        }
+
         // ---------------------------------------------------------------
         // Usuários (credenciais fixas para demo)
         // ---------------------------------------------------------------
