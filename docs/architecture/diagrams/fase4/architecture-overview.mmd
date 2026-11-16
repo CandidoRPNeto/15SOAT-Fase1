@@ -1,0 +1,53 @@
+%% Fase 4 — arquitetura geral: microsserviços, bancos e comunicação
+flowchart TB
+    Client(["Cliente<br/>(app / portal)"])
+    Staff(["Recepção / Mecânico"])
+    Lambda[["AWS Lambda<br/>auth por CPF → JWT"]]
+
+    subgraph K8S["Kubernetes (kind workshop-os)"]
+        direction LR
+        subgraph GW["ns traefik"]
+            Traefik["Traefik<br/>API Gateway :30080<br/>ForwardAuth"]
+        end
+        subgraph OSNS["ns os — OS Service"]
+            OSAPI["os-api<br/>Laravel 13"]
+            OSW["os-worker<br/>orquestrador da saga<br/>bus:work + watchdog"]
+            OSDB[("PostgreSQL<br/>OS, clientes, catálogo,<br/>estoque, saga")]
+        end
+        subgraph BNS["ns billing — Billing Service"]
+            BAPI["billing-api"]
+            BW["billing-worker<br/>bus:work + payments:verify"]
+            BDB[("PostgreSQL<br/>orçamentos,<br/>pagamentos")]
+        end
+        subgraph ENS["ns execution — Execution Service"]
+            EAPI["execution-api"]
+            EW["execution-worker<br/>bus:work"]
+            EDB[("MongoDB<br/>fila + timeline<br/>(NoSQL)")]
+        end
+        subgraph PNS["ns platform"]
+            MQ{{"RabbitMQ<br/>exchange topic 'workshop'<br/>+ DLQ"}}
+        end
+    end
+    subgraph EXT["Serviços externos"]
+        direction LR
+        MP[["Mercado Pago<br/>Checkout Pro (teste)"]]
+        DD[("Datadog<br/>APM · logs · monitores")]
+    end
+
+    Client & Staff -->|HTTPS REST| Traefik
+    Client -.->|obtém JWT| Lambda
+    Traefik -->|"/api/v1/* (auth própria)"| OSAPI
+    Traefik -->|"ForwardAuth → /auth/verify"| OSAPI
+    Traefik -->|"/api/v1/budgets · /payments<br/>+ X-User-*"| BAPI
+    Traefik -->|"/api/v1/executions<br/>+ X-User-*"| EAPI
+    OSAPI --- OSDB
+    OSW --- OSDB
+    BAPI --- BDB
+    BW --- BDB
+    EAPI --- EDB
+    EW --- EDB
+    OSW <-->|"cmd.* / evt.*<br/>outbox + inbox"| MQ
+    BW <-->|"cmd.billing.* / evt.billing.*"| MQ
+    EW <-->|"cmd.execution.* / evt.execution.*"| MQ
+    BW -->|"preferência + busca de pagamento"| MP
+    K8S -.->|traces + logs JSON| DD

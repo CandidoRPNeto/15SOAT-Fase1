@@ -28,14 +28,10 @@ Entry point for any spec-driven action: starting or closing an epic, adding a ru
 
 ## Epic queue (Fase 4)
 
-Order reflects dependencies. Branch per epic per repo: `feature/2026/11/<epic>`. Done: F4-01 (spec reset, RFC-004, ADR-010..015), F4-03 (OS messaging + saga; BDD runs in PHPUnit via `behat/gherkin` because Behat 3 does not install on Symfony 8).
+Order reflects dependencies. Branch per epic per repo: `feature/2026/11/<epic>`. Done: F4-01 spec/ADRs, F4-02 platform, F4-03 OS saga (BDD via `behat/gherkin` in PHPUnit — Behat 3 does not install on Symfony 8), F4-04 Billing, F4-05 Execution, F4-06 code (k8s + CI/CD; GitHub setup pending), F4-08 docs/diagrams. Verified end to end on kind: happy path + `stock`, `queue-full`, `worker-down` scenarios.
 
-2. `ep-f4-02-platform.md` — RabbitMQ, Traefik + ForwardAuth, namespaces, runner setup script, demo scripts (`15SOAT-Fase1-kubernetes`).
-4. `ep-f4-04-billing-service.md` — new repo; budgets, approval, Mercado Pago gateway, payment polling.
-5. `ep-f4-05-execution-service.md` — new repo; MongoDB queue, diagnosis/repair endpoints, timeline.
-6. `ep-f4-06-k8s-cicd.md` — per-service `k8s/`, CI/CD workflows, SonarCloud, branch protection, first runner deploy.
-7. `ep-f4-07-observability.md` — dd-trace per service, saga logs, Datadog monitors, distributed trace check.
-8. `ep-f4-08-docs-delivery.md` — diagrams + render script, `docs/fase4/entrega.md`, READMEs, Postman, coverage evidence, video `roteiro.md`.
+1. [`ep-f4-06-k8s-cicd.md`](ep-f4-06-k8s-cicd.md) — GitHub-side setup pending: repos, PRs, branch protection, SonarCloud, runners, Mercado Pago token.
+2. [`ep-f4-07-observability.md`](ep-f4-07-observability.md) — dd-trace per service, saga logs, Datadog monitors, distributed trace check.
 
 ## Epic lifecycle
 

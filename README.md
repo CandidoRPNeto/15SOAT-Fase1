@@ -1,6 +1,8 @@
-# 15SOAT - Fase 1/2/3 - Tech Challenge
+# 15SOAT - Tech Challenge — OS Service (Fases 1–4)
 
 API RESTful para gestão de ordens de serviço (OS) de uma oficina mecânica.
+Na Fase 4 este repositório é o **OS Service** e o **orquestrador da saga**
+entre os microsserviços (ver seção Fase 4).
 
 ---
 
@@ -123,12 +125,85 @@ Detalhes de cada estágio em [`.github/workflows/ci-cd.yml`](.github/workflows/c
 
 ---
 
-## Fase 4 — microsserviços + Saga (em andamento)
+## Fase 4 — microsserviços + Saga Pattern
 
-Divisão em OS Service (este repo), Billing Service e Execution Service, com
-Saga orquestrada sobre RabbitMQ. Requisitos em [`evolucao_fase4`](evolucao_fase4),
-epics em [`spec.md`](spec.md), decisões em
-[RFC-004](docs/architecture/rfcs/rfc-004-microservices-split.md) e ADR-010 a ADR-015.
+Requisitos: [`evolucao_fase4`](evolucao_fase4). Epics: [`spec.md`](spec.md).
+Decisões: [RFC-004](docs/architecture/rfcs/rfc-004-microservices-split.md),
+[ADR-010](docs/architecture/adrs/adr-010-saga-orchestration.md) a
+[ADR-015](docs/architecture/adrs/adr-015-per-repo-messaging-lib.md).
+Material do PDF: [`docs/fase4/entrega.md`](docs/fase4/entrega.md).
+
+![Arquitetura Fase 4](docs/architecture/diagrams/fase4/architecture-overview.png)
+
+### Microsserviços
+
+| Serviço | Repositório | Banco | Responsabilidade |
+|---|---|---|---|
+| **OS Service** | este repo | PostgreSQL | auth (Sanctum + JWT do Lambda), clientes, veículos, catálogo/estoque, abertura e histórico da OS, **orquestrador da saga** |
+| **Billing Service** | [15SOAT-Fase1-billing](https://github.com/CandidoRPNeto/15SOAT-Fase1-billing) | PostgreSQL | orçamentos, aprovação, pagamentos (Mercado Pago) |
+| **Execution Service** | [15SOAT-Fase1-execution](https://github.com/CandidoRPNeto/15SOAT-Fase1-execution) | MongoDB | fila de diagnóstico/reparo, timeline da execução |
+| Plataforma | [15SOAT-Fase1-kubernetes](https://github.com/CandidoRPNeto/15SOAT-Fase1-kubernetes) | — | Traefik (gateway + ForwardAuth), RabbitMQ, scripts de deploy/demo, monitores Datadog |
+
+Comunicação:
+- **REST síncrono** via Traefik. O OS Service valida o token (`/api/v1/auth/verify`), e o gateway repassa `X-User-*` para Billing/Execution.
+- **Assíncrono** via RabbitMQ: comandos `cmd.<serviço>.<verbo>` e eventos `evt.<serviço>.<fato>`, com outbox transacional e inbox idempotente.
+- Nenhum serviço acessa o banco de outro.
+
+### Saga Pattern — estratégia escolhida: **orquestrada**
+
+O orquestrador (`App\Application\Saga`) roda no `os-worker`. Ele persiste o
+estado em `saga_instances`/`saga_steps` e conduz o fluxo:
+
+abrir OS → enfileirar diagnóstico → orçamento → aprovação + reserva de
+estoque → enfileirar reparo → reparo (**pivot**) → pagamento → entrega.
+
+**Por que orquestrada:**
+- o fluxo é linear e tem um dono natural (a OS);
+- um coordenador explícito mostra o estado da saga numa consulta (`GET /api/v1/service-orders/{id}/history`);
+- concentra a compensação num lugar só;
+- permite testar o fluxo inteiro com BDD.
+
+Na coreografia, cada serviço precisaria conhecer as falhas dos outros, e o
+fluxo ficaria espalhado em 3 repositórios.
+
+**Rollback / compensação:**
+- Cada passo compensável é desfeito em ordem reversa: libera o estoque, anula o orçamento (`cmd.billing.void_budget`), cancela a tarefa (`cmd.execution.cancel_task`) e cancela a OS.
+- Gatilhos: estoque insuficiente, Billing/Execution recusando, rejeição do cliente ou timeout.
+- `saga:watchdog` reenvia passos sem resposta (3×) e então compensa.
+- Depois do pivot (início do reparo) só há retry.
+
+Diagramas:
+- [caminho feliz](docs/architecture/diagrams/fase4/saga-happy-path.png)
+- [compensação](docs/architecture/diagrams/fase4/saga-compensation.png)
+- [estados](docs/architecture/diagrams/fase4/saga-state-machine.png)
+- [CI/CD](docs/architecture/diagrams/fase4/cicd-pipeline.png)
+- [implantação K8s](docs/architecture/diagrams/fase4/k8s-deployment.png)
+
+### Rodar a Fase 4 (Kubernetes local — kind `workshop-os`)
+
+```bash
+export KUBECONFIG=~/.kube/workshop-os-config
+../15SOAT-Fase1-kubernetes/scripts/apply-platform.sh           # Traefik, RabbitMQ, Secrets
+scripts/deploy-kind.sh ghcr.io/candidorpneto/15soat-fase1:latest  # este serviço (idem nos outros repos)
+../15SOAT-Fase1-kubernetes/demo/e2e-saga.sh                     # fluxo completo pelos 3 serviços
+../15SOAT-Fase1-kubernetes/demo/e2e-compensation.sh stock       # falha + compensação
+```
+
+### CI/CD
+
+Pipeline independente em `.github/workflows/ci-cd.yml`:
+1. **test** — unit, feature e BDD; cobertura ≥ 80%; RabbitMQ real;
+2. **quality** — Pint + SonarCloud quality gate;
+3. **build** — imagem no GHCR;
+4. **deploy** — runner self-hosted → kind, com migrate + rollout + smoke test, só em push na `master` ([ADR-014](docs/architecture/adrs/adr-014-self-hosted-runner-kind.md)).
+
+A branch `master` é protegida: PR obrigatório e checks automáticos.
+
+### Testes, BDD e cobertura
+
+- BDD: [`features/saga_ordem_de_servico.feature`](features/saga_ordem_de_servico.feature) (Gherkin pt-BR, 5 cenários: fluxo completo + 4 falhas). Roda no PHPUnit (`tests/Bdd`) via `behat/gherkin`, porque o Behat 3 não instala com Symfony 8.
+- Cobertura: **~89%** local (gate de 80% no CI). Evidência: artefato `coverage` de cada execução do workflow e o projeto no SonarCloud.
+- Swagger: http://localhost:30080/api/documentation (Billing em `/billing/api/documentation`, Execution em `/execution/api/documentation`). Postman: [`Tech_Challenge.postman_collection.json`](Tech_Challenge.postman_collection.json), pasta "Fase 4 — Saga".
 
 ## Fase 3 — operação corporativa
 
@@ -204,32 +279,27 @@ O container sobe o banco, roda as migrations, popula os dados de demonstração 
 
 ### Deploy em Kubernetes
 
-> Necessário ter Docker, [kind](https://kind.sigs.k8s.io/) e `kubectl`
-> instalados. Provisione o cluster primeiro com Terraform (próxima seção)
-> ou com `kind create cluster`.
+Fase 4: o OS Service roda no namespace `os` do cluster kind `workshop-os`,
+atrás do Traefik da plataforma
+([15SOAT-Fase1-kubernetes](https://github.com/CandidoRPNeto/15SOAT-Fase1-kubernetes)).
 
 ```bash
-# build local da imagem usada pelos manifests
-docker build -t workshop-os-app:latest .
-kind load docker-image workshop-os-app:latest --name workshop-os
-
-# aplica config, secret, banco e a API
-kubectl apply -f k8s/configmap.yaml -f k8s/secret.yaml -f k8s/postgres.yaml \
-               -f k8s/deployment.yaml -f k8s/service.yaml -f k8s/hpa.yaml
-
-# roda a migração/seed uma única vez
-kubectl apply -f k8s/migrate-job.yaml
-kubectl wait --for=condition=complete job/workshop-os-migrate --timeout=180s
-
-# acesso local — funciona sempre:
-kubectl port-forward svc/workshop-os-app 8000:8000
-# alternativa, só se o cluster foi criado via infra/cluster (Terraform):
-# http://localhost:30080 já é mapeado para o NodePort da API (ver k8s/service.yaml)
+export KUBECONFIG=~/.kube/workshop-os-config
+../15SOAT-Fase1-kubernetes/scripts/apply-platform.sh   # uma vez: Traefik, RabbitMQ, Secrets
+docker build -t ghcr.io/candidorpneto/15soat-fase1:local .
+scripts/deploy-kind.sh ghcr.io/candidorpneto/15soat-fase1:local
+# http://localhost:30080 → Traefik → os-api
 ```
 
-Detalhes de cada manifesto em [`k8s/`](k8s/). O HPA (`k8s/hpa.yaml`) requer
-o [metrics-server](https://github.com/kubernetes-sigs/metrics-server)
-instalado no cluster (não vem por padrão no kind).
+`scripts/deploy-kind.sh` faz o seguinte (o job `deploy` do CI roda o mesmo script):
+1. `kind load` da imagem;
+2. `kubectl apply -k k8s/`;
+3. Postgres pronto;
+4. Job de migração;
+5. rollout de `os-api`/`os-worker`;
+6. smoke test via gateway.
+
+Detalhes em [`k8s/README.md`](k8s/README.md).
 
 ### Provisionamento da infraestrutura com Terraform
 
@@ -297,12 +367,12 @@ BASE_URL=http://127.0.0.1:30080 node scripts/route-load-test.js extreme 60 0
 Ao final, imprime um resumo por rota (tentativas, `2xx`/`4xx`/`5xx`, latência
 média). Duas notas sobre os resultados:
 
-- As 7 rotas de transição de status da OS (`generate-budget`, `approve`,
-  `cancel`, `start-execution`, `finalize`, `pay`, `deliver`) retornam `422`
-  após a 1ª tentativa por OS — a API não expõe uma rota para mover uma OS
-  recém-criada para "em diagnóstico" (pré-requisito de `generate-budget`), e
-  a regra de negócio corretamente rejeita pular etapas do fluxo. Isso ainda é
-  requisição HTTP real (auth, banco, JSON), válida para o teste de carga.
+- Fase 4: as rotas de transição de status (`generate-budget`, `approve`,
+  `cancel`, `start-execution`, `finalize`, `pay`) saíram do OS Service. Elas
+  migraram para Billing/Execution, e o status passou a mudar por eventos da saga.
+  Este script ainda as chama e recebe `404`; ele cobre a carga das
+  rotas do OS Service, mas não o fluxo da saga (para isso use
+  `15SOAT-Fase1-kubernetes/demo/e2e-saga.sh`).
 - Sob concorrência real, `ServiceOrder::generateNumber()` (conta registros do
   ano para montar `OS-AAAA-NNNNN`) pode gerar colisão e retornar `500` — uma
   race condition conhecida, exposta justamente pelo teste de carga.
@@ -323,10 +393,12 @@ média). Duas notas sobre os resultados:
 
 ```
 received → in_diagnosis → awaiting_approval → approved → in_execution → finalized → delivered
-                                           └→ cancelled
+   └──────────────┴──────────────┴──→ cancelled (compensação da saga)
 ```
 
-Notificações automáticas são disparadas na criação e nas transições de orçamento gerado, finalização e atraso na retirada (job horário).
+Fase 4: a OS muda de status pelos eventos da saga (Execution/Billing), e não
+por endpoints de transição. Notificações automáticas saem na criação, no
+orçamento gerado, na finalização e no atraso da retirada (job horário).
 
 ---
 
@@ -357,14 +429,16 @@ Authorization: Bearer {token}
 | POST   | `/api/v1/service-orders/{id}/services`        | mecânico                | Adicionar serviço (cria itens automaticamente)  |
 | POST   | `/api/v1/service-orders/{id}/items`           | mecânico                | Adicionar item manualmente à OS                 |
 | DELETE | `/api/v1/service-orders/{id}/items/{itemId}`  | mecânico                | Remover item da OS                              |
-| POST   | `/api/v1/service-orders/{id}/generate-budget` | mecânico                | Gerar orçamento                                 |
-| POST   | `/api/v1/service-orders/{id}/approve`         | cliente                 | Aprovar orçamento                               |
-| POST   | `/api/v1/service-orders/{id}/cancel`          | cliente                 | Cancelar orçamento                              |
-| POST   | `/api/v1/service-orders/{id}/pay`             | cliente                 | Pagar OS                                        |
-| POST   | `/api/v1/service-orders/{id}/deliver`         | recepcionista           | Entregar veículo                                |
-| POST   | `/webhook/messaging`                          | público                 | Sem corpo: lista OS abertas. Com `event`=`budget_approved`/`budget_rejected` + `order_number`: aplica a decisão do cliente |
+| GET    | `/api/v1/service-orders/{id}/history`         | todos                   | Histórico de status + passos da saga            |
+| POST   | `/api/v1/service-orders/{id}/deliver`         | recepcionista           | Entregar veículo (OS finalizada e paga; conclui a saga) |
+| GET    | `/api/v1/auth/verify`                         | autenticado             | Alvo do ForwardAuth do Traefik (headers `X-User-*`) |
+| POST   | `/webhook/messaging`                          | público                 | Lista OS abertas                                |
 
-Documentação completa e interativa em **http://localhost:8000/api/documentation**.
+Fase 4 — rotas nos outros serviços (mesmo host, via gateway):
+- **Billing**: `GET /api/v1/budgets`, `POST /api/v1/budgets/{id}/approve|reject`, `GET /api/v1/payments`, `POST /api/v1/payments/{id}/verify`.
+- **Execution**: `GET /api/v1/executions`, `POST /api/v1/executions/{id}/diagnosis|repair/start|finish`.
+
+Documentação completa e interativa em **http://localhost:30080/api/documentation** (kind) ou http://localhost:8000/api/documentation (Docker Compose).
 
 ---
 
@@ -397,7 +471,7 @@ Rodar com relatório de cobertura no terminal + arquivos para o SonarQube:
 XDEBUG_MODE=coverage php artisan test --coverage --coverage-clover=coverage.xml --log-junit=test-results.xml
 ```
 
-**Resultado atual: 131 testes, 286 assertions.**
+**Resultado atual: 168 testes (unit + feature + 5 cenários BDD), 411 assertions; 2 testes de integração com RabbitMQ rodam quando `RABBITMQ_TEST_HOST` está definido (sempre no CI). Cobertura ~89%.**
 
 ---
 
