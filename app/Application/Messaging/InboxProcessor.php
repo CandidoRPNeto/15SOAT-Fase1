@@ -24,7 +24,7 @@ class InboxProcessor
         Log::withContext(['correlation_id' => $envelope->correlationId, 'saga_id' => $envelope->sagaId]);
 
         return DB::transaction(function () use ($envelope): bool {
-            if (ProcessedMessage::whereKey($envelope->messageId)->exists()) {
+            if (ProcessedMessage::where('message_id', $envelope->messageId)->exists()) {
                 Log::info('inbox.duplicate_skipped', ['message_id' => $envelope->messageId, 'type' => $envelope->type]);
 
                 return false;
