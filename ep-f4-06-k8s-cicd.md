@@ -7,10 +7,11 @@ with `deploy-kind.sh`; smoke tests and e2e demos green.
 
 ## Pending (outward-facing — needs the dev's go-ahead)
 
-- [ ] `gh repo create CandidoRPNeto/15SOAT-Fase1-billing --public` and `-execution`; push `main`; create `homolog`
-- [ ] Push Fase 4 branches of `15SOAT-Fase1` (stacked on `feature/2026/09/datadog-apm-local`) and `15SOAT-Fase1-kubernetes`; open PRs
-- [ ] Branch protection (`main`/`master` + `homolog`): PR required, checks `test` + `quality`, no force-push, `enforce_admins`
+- [x] Repos `15SOAT-Fase1-billing` / `-execution` created (public); `main` + `homolog` pushed
+- [x] One PR per repo carrying Fase 3 + Fase 4: `15SOAT-Fase1` (`f4-08-docs-delivery` → `master`), `-kubernetes` (`f4-02-platform` → `main`), `-database` (`epic4-deploy-workflow` → `main`). Fase 3 stacked PRs were merged into their parent branches, never into the default branch.
+- [ ] Dev merges the PRs above
+- [x] Branch protection: PR required, checks `test` + `quality` (kubernetes: `terraform-validate` + `platform-validate`), no force-push, `enforce_admins`
 - [ ] SonarCloud: import the 3 service repos (org `candidorpneto`), add `SONAR_TOKEN` secret to each
-- [ ] Self-hosted runners: `15SOAT-Fase1-kubernetes/scripts/setup-runner.sh <owner/repo>` ×3; enable "Require approval for all outside collaborators"
+- [x] Self-hosted runners ×3 (`systemctl --user status 'actions-runner-*'`); fork PRs need approval (`all_external_contributors`)
 - [ ] Mercado Pago: `MERCADOPAGO_ACCESS_TOKEN=TEST-...` + `PAYMENT_GATEWAY=mercadopago` in `~/.workshop-os/secrets/billing.env`, re-run `bootstrap-secrets.sh`, restart billing pods
 - [ ] First green pipeline with deploy on each repo (evidence for README/video)

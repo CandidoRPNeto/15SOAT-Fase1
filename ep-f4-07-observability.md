@@ -11,7 +11,7 @@ Repos: all three services + `15SOAT-Fase1-kubernetes` (`observability/`).
 
 ## Pending (needs the dev's Datadog account)
 
-- [ ] `docker start dd-agent` on the host (Agent sends to Datadog SaaS — dev's call)
+- [x] `docker start dd-agent` — receiver gets spans from the 3 services + `amqp`; stats payloads flow. `trace_writer` still reports 0 payloads: confirm traces in the APM UI
 - [ ] Run `demo/e2e-saga.sh`, confirm one trace spans os-service → rabbitmq → billing/execution in APM
 - [ ] `cd observability && DD_API_KEY=... DD_APP_KEY=... terraform apply`
 - [ ] If AMQP spans do not link, set `DD_TRACE_PROPAGATION_STYLE=datadog,tracecontext` and re-check
