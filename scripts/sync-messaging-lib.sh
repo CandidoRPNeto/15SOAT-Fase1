@@ -25,11 +25,20 @@ files=(
   app/Infrastructure/Messaging/RabbitMq/RabbitMqConnectionFactory.php
   app/Infrastructure/Messaging/RabbitMq/RabbitMqMessagePublisher.php
   app/Infrastructure/Messaging/RabbitMq/RabbitMqMessageConsumer.php
+  app/Application/Ports/TraceContext.php
+  app/Infrastructure/Tracing/DatadogTraceContext.php
+  app/Infrastructure/Tracing/NullTraceContext.php
+  app/Infrastructure/Tracing/ServeCommandTracerEnv.php
   app/Console/Commands/BusWorkCommand.php
   app/Http/Middleware/AssignCorrelationId.php
   app/Http/Middleware/LogRequestLatency.php
   tests/Fakes/InMemoryMessagePublisher.php
   tests/Fakes/InMemoryMessageConsumer.php
+  tests/Fakes/RecordingTraceContext.php
+  tests/Unit/TraceContextAdapterTest.php
+  tests/Fakes/AcknowledgingAmqpMessage.php
+  tests/Unit/RabbitMqConsumerTraceTest.php
+  tests/Unit/ServeCommandDatadogEnvTest.php
   tests/Unit/MessageEnvelopeTest.php
   tests/Unit/AssignCorrelationIdTest.php
   tests/Feature/RabbitMqRoundTripTest.php
@@ -39,6 +48,8 @@ if $eloquent; then
     app/Models/OutboxMessage.php
     app/Models/ProcessedMessage.php
     database/migrations/2026_11_16_000001_create_messaging_tables.php
+    database/migrations/2026_11_17_000001_add_trace_context_to_outbox_messages.php
+    tests/Unit/OutboxTraceContextTest.php
     tests/Unit/OutboxRelayTest.php
     tests/Unit/InboxProcessorTest.php
   )
