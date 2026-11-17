@@ -1,0 +1,42 @@
+%% Saga orquestrada — caminho feliz (ADR-010)
+sequenceDiagram
+    autonumber
+    actor R as Recepção
+    actor M as Mecânico
+    actor C as Cliente
+    participant OS as OS Service<br/>(orquestrador)
+    participant MQ as RabbitMQ
+    participant EX as Execution
+    participant BI as Billing
+    participant MP as Mercado Pago
+
+    R->>OS: POST /service-orders
+    Note over OS: tx: OS received + saga + outbox
+    OS-)MQ: cmd.execution.enqueue_diagnosis
+    MQ-)EX: enfileira diagnóstico
+    EX-)OS: evt.execution.diagnosis_enqueued
+    M->>EX: POST /executions/{id}/diagnosis/start
+    EX-)OS: evt.execution.diagnosis_started → in_diagnosis
+    M->>OS: POST /service-orders/{id}/items (peças)
+    M->>EX: POST /executions/{id}/diagnosis/finish
+    EX-)OS: evt.execution.diagnosis_completed
+    OS-)BI: cmd.billing.create_budget (snapshot de preços)
+    BI-)OS: evt.billing.budget_created → awaiting_approval
+    C->>BI: POST /budgets/{id}/approve
+    BI-)OS: evt.billing.budget_approved
+    Note over OS: tx local: reserva de estoque
+    OS-)EX: cmd.execution.enqueue_repair
+    EX-)OS: evt.execution.repair_enqueued → approved
+    M->>EX: POST /executions/{id}/repair/start
+    EX-)OS: evt.execution.repair_started → in_execution (pivot)
+    M->>EX: POST /executions/{id}/repair/finish
+    EX-)OS: evt.execution.repair_finished → finalized
+    OS-)BI: cmd.billing.request_payment
+    BI->>MP: cria preferência (Checkout Pro)
+    BI-)OS: evt.billing.payment_requested (checkout_url)
+    C->>MP: paga no checkout
+    loop payments:verify (a cada minuto)
+        BI->>MP: busca pagamento por external_reference
+    end
+    BI-)OS: evt.billing.payment_confirmed → paid_at
+    R->>OS: POST /service-orders/{id}/deliver → delivered (saga completed)

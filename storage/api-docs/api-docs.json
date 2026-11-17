@@ -101,6 +101,29 @@
                 ]
             }
         },
+        "/api/v1/auth/verify": {
+            "get": {
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Valida o token e devolve a identidade em headers (alvo do ForwardAuth do Traefik)",
+                "description": "Usado pelo gateway antes de rotear para Billing/Execution (ADR-013). Aceita token Sanctum ou JWT do Lambda de CPF. Os headers X-User-* são copiados pelo Traefik para a requisição de destino.",
+                "operationId": "5b9083dd0b3aa794ffc13acb31b0ab1d",
+                "responses": {
+                    "200": {
+                        "description": "Token válido; headers X-User-Id, X-User-Role, X-User-Client-Id"
+                    },
+                    "401": {
+                        "description": "Não autenticado"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
         "/api/v1/clients": {
             "get": {
                 "tags": [
@@ -313,6 +336,50 @@
                 "security": [
                     {
                         "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/internal/clients/cpf-lookup": {
+            "post": {
+                "tags": [
+                    "Internal"
+                ],
+                "summary": "Consulta existência e status de um cliente por CPF",
+                "operationId": "f5c61ca86b4a9771d7c9c6c5abb599f4",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "cpf_cnpj"
+                                ],
+                                "properties": {
+                                    "cpf_cnpj": {
+                                        "type": "string",
+                                        "example": "123.456.789-00"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Cliente encontrado — retorna user_id, name e status"
+                    },
+                    "401": {
+                        "description": "X-Internal-Api-Key ausente ou inválida"
+                    },
+                    "404": {
+                        "description": "Nenhum cliente com esse CPF"
+                    }
+                },
+                "security": [
+                    {
+                        "internalApiKey": []
                     }
                 ]
             }
@@ -836,7 +903,7 @@
                 "tags": [
                     "ServiceOrders"
                 ],
-                "summary": "Cria uma Ordem de Serviço",
+                "summary": "Cria uma Ordem de Serviço e inicia a saga (enfileira diagnóstico no Execution Service)",
                 "operationId": "7f17c440e6edc12a5fac1bdb151898a7",
                 "requestBody": {
                     "required": true,
@@ -1133,198 +1200,6 @@
                 ]
             }
         },
-        "/api/v1/service-orders/{id}/generate-budget": {
-            "post": {
-                "tags": [
-                    "ServiceOrders"
-                ],
-                "summary": "Gera orçamento e avança para Aguardando aprovação (mecânico)",
-                "operationId": "c8772ba3ee3697bd329a27752159cf44",
-                "parameters": [
-                    {
-                        "name": "id",
-                        "in": "path",
-                        "required": true,
-                        "schema": {
-                            "type": "integer"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Orçamento gerado e enviado ao cliente"
-                    },
-                    "422": {
-                        "description": "Status inválido para gerar orçamento"
-                    }
-                },
-                "security": [
-                    {
-                        "sanctum": []
-                    }
-                ]
-            }
-        },
-        "/api/v1/service-orders/{id}/approve": {
-            "post": {
-                "tags": [
-                    "ServiceOrders"
-                ],
-                "summary": "Cliente aprova o orçamento",
-                "operationId": "951eebb343092171d4a0a42a6d88a08a",
-                "parameters": [
-                    {
-                        "name": "id",
-                        "in": "path",
-                        "required": true,
-                        "schema": {
-                            "type": "integer"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OS aprovada"
-                    },
-                    "422": {
-                        "description": "Status inválido para aprovação"
-                    }
-                },
-                "security": [
-                    {
-                        "sanctum": []
-                    }
-                ]
-            }
-        },
-        "/api/v1/service-orders/{id}/cancel": {
-            "post": {
-                "tags": [
-                    "ServiceOrders"
-                ],
-                "summary": "Cliente cancela o orçamento",
-                "operationId": "ac7390bd19a654c04c57bc734e6625f5",
-                "parameters": [
-                    {
-                        "name": "id",
-                        "in": "path",
-                        "required": true,
-                        "schema": {
-                            "type": "integer"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OS cancelada"
-                    },
-                    "422": {
-                        "description": "Status inválido para cancelamento"
-                    }
-                },
-                "security": [
-                    {
-                        "sanctum": []
-                    }
-                ]
-            }
-        },
-        "/api/v1/service-orders/{id}/start-execution": {
-            "post": {
-                "tags": [
-                    "ServiceOrders"
-                ],
-                "summary": "Inicia a execução (mecânico)",
-                "operationId": "096a8718e486099dc230d6176cbf8829",
-                "parameters": [
-                    {
-                        "name": "id",
-                        "in": "path",
-                        "required": true,
-                        "schema": {
-                            "type": "integer"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OS em execução"
-                    },
-                    "422": {
-                        "description": "Status inválido"
-                    }
-                },
-                "security": [
-                    {
-                        "sanctum": []
-                    }
-                ]
-            }
-        },
-        "/api/v1/service-orders/{id}/finalize": {
-            "post": {
-                "tags": [
-                    "ServiceOrders"
-                ],
-                "summary": "Finaliza execução (mecânico)",
-                "operationId": "74b538e472cc951f80d9e3831b6559c2",
-                "parameters": [
-                    {
-                        "name": "id",
-                        "in": "path",
-                        "required": true,
-                        "schema": {
-                            "type": "integer"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OS finalizada — cliente notificado para retirar"
-                    },
-                    "422": {
-                        "description": "Status inválido"
-                    }
-                },
-                "security": [
-                    {
-                        "sanctum": []
-                    }
-                ]
-            }
-        },
-        "/api/v1/service-orders/{id}/pay": {
-            "post": {
-                "tags": [
-                    "ServiceOrders"
-                ],
-                "summary": "Cliente paga a OS",
-                "operationId": "7d98a7d92cd2cdd704e2f0a17f21bb86",
-                "parameters": [
-                    {
-                        "name": "id",
-                        "in": "path",
-                        "required": true,
-                        "schema": {
-                            "type": "integer"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Pagamento processado"
-                    },
-                    "422": {
-                        "description": "OS não está Finalizada ou já foi paga"
-                    }
-                },
-                "security": [
-                    {
-                        "sanctum": []
-                    }
-                ]
-            }
-        },
         "/api/v1/service-orders/{id}/deliver": {
             "post": {
                 "tags": [
@@ -1367,6 +1242,41 @@
                 "responses": {
                     "200": {
                         "description": "Estatísticas de execução"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/service-orders/{id}/history": {
+            "get": {
+                "tags": [
+                    "ServiceOrders"
+                ],
+                "summary": "Histórico de status da OS e passos da saga",
+                "operationId": "43005855a200f89d7aaa96df31f36d0a",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "status_history (cronológico) e saga (status + passos)"
+                    },
+                    "403": {
+                        "description": "Acesso não autorizado"
+                    },
+                    "404": {
+                        "description": "OS não encontrada"
                     }
                 },
                 "security": [
@@ -1600,32 +1510,9 @@
                 "tags": [
                     "Webhook"
                 ],
-                "summary": "Webhook do sistema de mensageria — retorna OS abertas ou processa aprovação de orçamento",
-                "description": "Chamado pelo sistema de mensageria externo. Sem corpo, retorna a lista de OS com status aberto (não canceladas e não entregues). Com `event` = `budget_approved` ou `budget_rejected` e `order_number`, aplica a decisão do cliente sobre o orçamento.",
+                "summary": "Webhook do sistema de mensageria — retorna OS abertas",
+                "description": "Chamado pelo sistema de mensageria externo. Retorna a lista de OS com status aberto (não canceladas e não entregues). Fase 4: a decisão sobre o orçamento migrou para o Billing Service (POST /api/v1/budgets/{id}/approve|reject).",
                 "operationId": "dc4dbebd8da9b3ceddc2b7f5c175216c",
-                "requestBody": {
-                    "required": false,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "properties": {
-                                    "event": {
-                                        "type": "string",
-                                        "enum": [
-                                            "budget_approved",
-                                            "budget_rejected"
-                                        ]
-                                    },
-                                    "order_number": {
-                                        "type": "string",
-                                        "example": "OS-2026-00001"
-                                    }
-                                },
-                                "type": "object"
-                            }
-                        }
-                    }
-                },
                 "responses": {
                     "200": {
                         "description": "Lista de OS abertas ou confirmação da decisão de orçamento",
@@ -1667,12 +1554,6 @@
                                 }
                             }
                         }
-                    },
-                    "404": {
-                        "description": "OS não encontrada (informada em order_number)"
-                    },
-                    "422": {
-                        "description": "Evento inválido ou status da OS não permite a decisão"
                     }
                 }
             }
@@ -1696,6 +1577,10 @@
         {
             "name": "Clients",
             "description": "CRUD de clientes (perfis: receptionist, mechanic)"
+        },
+        {
+            "name": "Internal",
+            "description": "Uso exclusivo de sistemas internos (Function Serverless de auth) — Fase 3"
         },
         {
             "name": "Items",

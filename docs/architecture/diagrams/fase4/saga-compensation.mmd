@@ -1,0 +1,43 @@
+%% Saga — falhas e compensação (ADR-010)
+sequenceDiagram
+    autonumber
+    actor C as Cliente
+    participant OS as OS Service<br/>(orquestrador)
+    participant MQ as RabbitMQ
+    participant EX as Execution
+    participant BI as Billing
+
+    rect rgba(220, 80, 80, 0.12)
+    Note over C,BI: Cenário A — estoque insuficiente na aprovação
+    C->>BI: POST /budgets/{id}/approve
+    BI-)OS: evt.billing.budget_approved
+    Note over OS: reserva de estoque falha (falha de negócio)
+    OS-)BI: cmd.billing.void_budget (compensa orçamento)
+    OS-)EX: cmd.execution.cancel_task (compensa tarefa)
+    Note over OS: OS → cancelled · saga → compensated
+    end
+
+    rect rgba(220, 160, 60, 0.15)
+    Note over C,BI: Cenário B — Execution recusa o reparo (fila lotada)
+    OS-)EX: cmd.execution.enqueue_repair
+    EX-)OS: evt.execution.repair_enqueue_failed
+    Note over OS: libera estoque reservado (tx local)
+    OS-)BI: cmd.billing.void_budget
+    OS-)EX: cmd.execution.cancel_task
+    Note over OS: OS → cancelled · saga → compensated
+    end
+
+    rect rgba(80, 140, 220, 0.12)
+    Note over C,BI: Cenário C — Execution fora do ar
+    OS-)MQ: cmd.execution.enqueue_diagnosis
+    Note over MQ: fila durável retém a mensagem
+    loop saga:watchdog (a cada minuto)
+        OS-)MQ: reenvia o comando (até 3 tentativas)
+    end
+    alt Execution volta antes do limite
+        MQ-)EX: consome (inbox idempotente descarta duplicatas)
+        EX-)OS: evt.execution.diagnosis_enqueued → saga segue
+    else limite de tentativas
+        Note over OS: compensa passos já enviados · OS → cancelled
+    end
+    end

@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Application\Saga\CompleteServiceOrderSaga;
+use App\Application\Saga\ServiceOrderStatusTransition;
 use App\Application\ServiceOrder\GetServiceOrderStatus;
 use App\Application\ServiceOrder\ListServiceOrders;
 use App\Application\ServiceOrder\OpenServiceOrder;
-use App\Contracts\MessagingServiceInterface;
-use App\Contracts\PaymentServiceInterface;
 use App\Domain\ServiceOrder\ServiceOrderPolicy;
 use App\Domain\ServiceOrder\ServiceOrderStatus;
 use App\Http\Requests\AddItemToOrderRequest;
@@ -22,16 +22,18 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use OpenApi\Attributes as OA;
 
 #[OA\Tag(name: 'ServiceOrders', description: 'Ciclo de vida das Ordens de Serviço')]
 class ServiceOrderController extends Controller
 {
     public function __construct(
-        private readonly MessagingServiceInterface $messaging,
-        private readonly PaymentServiceInterface $payment,
         private readonly OpenServiceOrder $openServiceOrder,
         private readonly GetServiceOrderStatus $getServiceOrderStatus,
+        private readonly ServiceOrderStatusTransition $statusTransition,
+        private readonly CompleteServiceOrderSaga $completeSaga,
     ) {}
 
     #[OA\Get(
@@ -84,7 +86,7 @@ class ServiceOrderController extends Controller
 
     #[OA\Post(
         path: '/api/v1/service-orders',
-        summary: 'Cria uma Ordem de Serviço',
+        summary: 'Cria uma Ordem de Serviço e inicia a saga (enfileira diagnóstico no Execution Service)',
         security: [['sanctum' => []]],
         tags: ['ServiceOrders'],
         requestBody: new OA\RequestBody(
@@ -125,7 +127,10 @@ class ServiceOrderController extends Controller
     )]
     public function store(StoreServiceOrderRequest $request): JsonResponse
     {
-        $order = $this->openServiceOrder->execute($request->validated());
+        $order = $this->openServiceOrder->execute(
+            $request->validated(),
+            (string) $request->attributes->get('correlation_id', (string) Str::uuid()),
+        );
 
         return response()->json(
             new ServiceOrderResource($order->load(['services', 'orderItems.item'])),
@@ -341,202 +346,6 @@ class ServiceOrderController extends Controller
     }
 
     #[OA\Post(
-        path: '/api/v1/service-orders/{id}/generate-budget',
-        summary: 'Gera orçamento e avança para Aguardando aprovação (mecânico)',
-        security: [['sanctum' => []]],
-        tags: ['ServiceOrders'],
-        parameters: [
-            new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
-        ],
-        responses: [
-            new OA\Response(response: 200, description: 'Orçamento gerado e enviado ao cliente'),
-            new OA\Response(response: 422, description: 'Status inválido para gerar orçamento'),
-        ]
-    )]
-    public function generateBudget(int $id): JsonResponse
-    {
-        $order = ServiceOrder::with(['client', 'vehicle', 'orderServices', 'orderItems'])->findOrFail($id);
-
-        if (! ServiceOrderPolicy::canGenerateBudget($order->status)) {
-            return response()->json(['message' => 'A OS deve estar Em diagnóstico para gerar o orçamento.'], 422);
-        }
-
-        $total = $order->calculateTotal();
-
-        $order->update([
-            'status' => ServiceOrderStatus::AWAITING_APPROVAL,
-            'total_amount' => $total,
-            'budget_sent_at' => now(),
-        ]);
-
-        $order->load(['client', 'vehicle', 'services', 'orderItems.item']);
-        $this->messaging->notifyBudgetReady($order);
-
-        return response()->json(new ServiceOrderResource($order));
-    }
-
-    #[OA\Post(
-        path: '/api/v1/service-orders/{id}/approve',
-        summary: 'Cliente aprova o orçamento',
-        security: [['sanctum' => []]],
-        tags: ['ServiceOrders'],
-        parameters: [
-            new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
-        ],
-        responses: [
-            new OA\Response(response: 200, description: 'OS aprovada'),
-            new OA\Response(response: 422, description: 'Status inválido para aprovação'),
-        ]
-    )]
-    public function approve(Request $request, int $id): JsonResponse
-    {
-        $order = ServiceOrder::with(['client', 'vehicle'])->findOrFail($id);
-
-        if ($request->user()->isClient() && $order->client_id !== $request->user()->id) {
-            return response()->json(['message' => 'Acesso não autorizado.'], 403);
-        }
-
-        if (! ServiceOrderPolicy::canApprove($order->status)) {
-            return response()->json(['message' => 'A OS deve estar Aguardando aprovação para ser aprovada.'], 422);
-        }
-
-        $order->update(['status' => ServiceOrderStatus::APPROVED]);
-
-        return response()->json(new ServiceOrderResource($order->load(['services', 'orderItems.item'])));
-    }
-
-    #[OA\Post(
-        path: '/api/v1/service-orders/{id}/cancel',
-        summary: 'Cliente cancela o orçamento',
-        security: [['sanctum' => []]],
-        tags: ['ServiceOrders'],
-        parameters: [
-            new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
-        ],
-        responses: [
-            new OA\Response(response: 200, description: 'OS cancelada'),
-            new OA\Response(response: 422, description: 'Status inválido para cancelamento'),
-        ]
-    )]
-    public function cancel(Request $request, int $id): JsonResponse
-    {
-        $order = ServiceOrder::with(['client', 'vehicle'])->findOrFail($id);
-
-        if ($request->user()->isClient() && $order->client_id !== $request->user()->id) {
-            return response()->json(['message' => 'Acesso não autorizado.'], 403);
-        }
-
-        if (! ServiceOrderPolicy::canCancel($order->status)) {
-            return response()->json(['message' => 'A OS deve estar Aguardando aprovação para ser cancelada.'], 422);
-        }
-
-        $order->update(['status' => ServiceOrderStatus::CANCELLED]);
-
-        return response()->json(new ServiceOrderResource($order->load(['services', 'orderItems.item'])));
-    }
-
-    #[OA\Post(
-        path: '/api/v1/service-orders/{id}/start-execution',
-        summary: 'Inicia a execução (mecânico)',
-        security: [['sanctum' => []]],
-        tags: ['ServiceOrders'],
-        parameters: [
-            new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
-        ],
-        responses: [
-            new OA\Response(response: 200, description: 'OS em execução'),
-            new OA\Response(response: 422, description: 'Status inválido'),
-        ]
-    )]
-    public function startExecution(int $id): JsonResponse
-    {
-        $order = ServiceOrder::findOrFail($id);
-
-        if (! ServiceOrderPolicy::canStartExecution($order->status)) {
-            return response()->json(['message' => 'A OS deve estar Aprovada para iniciar a execução.'], 422);
-        }
-
-        $order->update(['status' => ServiceOrderStatus::IN_EXECUTION]);
-
-        return response()->json(new ServiceOrderResource($order->load(['client', 'vehicle', 'services', 'orderItems.item'])));
-    }
-
-    #[OA\Post(
-        path: '/api/v1/service-orders/{id}/finalize',
-        summary: 'Finaliza execução (mecânico)',
-        security: [['sanctum' => []]],
-        tags: ['ServiceOrders'],
-        parameters: [
-            new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
-        ],
-        responses: [
-            new OA\Response(response: 200, description: 'OS finalizada — cliente notificado para retirar'),
-            new OA\Response(response: 422, description: 'Status inválido'),
-        ]
-    )]
-    public function finalize(int $id): JsonResponse
-    {
-        $order = ServiceOrder::with(['client', 'vehicle'])->findOrFail($id);
-
-        if (! ServiceOrderPolicy::canFinalize($order->status)) {
-            return response()->json(['message' => 'A OS deve estar Em execução para ser finalizada.'], 422);
-        }
-
-        $order->update([
-            'status' => ServiceOrderStatus::FINALIZED,
-            'finalized_at' => now(),
-        ]);
-
-        $this->messaging->notifyPickupReady($order);
-
-        return response()->json(new ServiceOrderResource($order->load(['services', 'orderItems.item'])));
-    }
-
-    #[OA\Post(
-        path: '/api/v1/service-orders/{id}/pay',
-        summary: 'Cliente paga a OS',
-        security: [['sanctum' => []]],
-        tags: ['ServiceOrders'],
-        parameters: [
-            new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
-        ],
-        responses: [
-            new OA\Response(response: 200, description: 'Pagamento processado'),
-            new OA\Response(response: 422, description: 'OS não está Finalizada ou já foi paga'),
-        ]
-    )]
-    public function pay(Request $request, int $id): JsonResponse
-    {
-        $order = ServiceOrder::with(['client', 'vehicle'])->findOrFail($id);
-
-        if ($request->user()->isClient() && $order->client_id !== $request->user()->id) {
-            return response()->json(['message' => 'Acesso não autorizado.'], 403);
-        }
-
-        if (! ServiceOrderPolicy::canPay($order->status)) {
-            return response()->json(['message' => 'A OS deve estar Finalizada para efetuar o pagamento.'], 422);
-        }
-
-        if ($order->isPaid()) {
-            return response()->json(['message' => 'Esta OS já foi paga.'], 422);
-        }
-
-        $result = $this->payment->processPayment($order);
-
-        if (! $result['success']) {
-            return response()->json(['message' => 'Falha no processamento do pagamento.'], 422);
-        }
-
-        $order->update(['paid_at' => now()]);
-
-        return response()->json([
-            'message' => $result['message'],
-            'transaction_id' => $result['transaction_id'],
-            'order' => new ServiceOrderResource($order->load(['services', 'orderItems.item'])),
-        ]);
-    }
-
-    #[OA\Post(
         path: '/api/v1/service-orders/{id}/deliver',
         summary: 'Recepcionista entrega o carro após pagamento',
         security: [['sanctum' => []]],
@@ -557,10 +366,10 @@ class ServiceOrderController extends Controller
             return response()->json(['message' => 'A OS deve estar Finalizada e paga para ser entregue.'], 422);
         }
 
-        $order->update([
-            'status' => ServiceOrderStatus::DELIVERED,
-            'delivered_at' => now(),
-        ]);
+        DB::transaction(function () use ($order) {
+            $this->statusTransition->apply($order, ServiceOrderStatus::DELIVERED, 'veículo entregue ao cliente', ['delivered_at' => now()]);
+            $this->completeSaga->execute($order);
+        });
 
         return response()->json(new ServiceOrderResource($order->load(['services', 'orderItems.item'])));
     }

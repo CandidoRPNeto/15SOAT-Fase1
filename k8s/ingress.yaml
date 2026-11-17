@@ -1,0 +1,20 @@
+# Rota catch-all do gateway para o OS Service (auth, cadastros, OS, histórico).
+# Billing (/api/v1/budgets, /api/v1/payments) e Execution (/api/v1/executions)
+# têm Ingress próprios com prefixos mais longos — o Traefik prioriza o mais
+# específico. O OS se autentica sozinho (Sanctum/JWT), sem ForwardAuth.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: os-api
+spec:
+  ingressClassName: traefik
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: os-api
+                port:
+                  number: 8000

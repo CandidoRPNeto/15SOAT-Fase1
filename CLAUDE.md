@@ -4,14 +4,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**Workshop OS API** — Laravel 13 (PHP ^8.3) REST API para gestão de ordens de serviço de oficina mecânica.
+**Workshop OS — OS Service** — Laravel 13 (PHP ^8.3). Fase 4: este repo é o OS Service (auth, cadastros, catálogo/estoque, OS e **orquestrador da saga**). Orçamento/pagamento vivem em `15SOAT-Fase1-billing`; diagnóstico/reparo em `15SOAT-Fase1-execution`; plataforma (Traefik, RabbitMQ, scripts) em `15SOAT-Fase1-kubernetes`. Spec: `spec.md`. Decisões: RFC-004, ADR-010..015.
 
 - **Database**: PostgreSQL (produção/Docker), SQLite `:memory:` (testes)
 - **Auth**: Laravel Sanctum (API tokens)
 - **Docs**: L5-Swagger / OpenAPI 3 em `/api/documentation`
 - **Queue**: Database driver; scheduler rodando `SendFineNotificationJob` a cada hora
-- **Testes**: PHPUnit — 76 testes, 167 assertions; cobertura em `coverage.xml`
-- **CI**: `sonar-project.properties` configurado; SonarQube disponível via `--profile sonar`
+- **Testes**: PHPUnit (Unit, Feature, Bdd — Gherkin em `features/` via `behat/gherkin`); cobertura ≥ 80% no CI
+- **CI/CD**: `.github/workflows/ci-cd.yml` — test → quality (Pint + SonarCloud) → build (GHCR) → deploy (runner self-hosted → kind, `scripts/deploy-kind.sh`)
+- **Mensageria**: RabbitMQ — `bus:work` (outbox relay + consumo `evt.*`), `saga:watchdog` a cada minuto
 
 ## Regras do projeto
 
@@ -21,23 +22,25 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 4. Webhook externo está em `POST /webhook/messaging` (sem prefixo `/api`).
 5. Use `UpdateXxxRequest` (com `sometimes`) para PUTs; `StoreXxxRequest` (com `required`) para POSTs.
 6. Pesquisas case-insensitive: use `LOWER(col) LIKE ?` (compatível com SQLite nos testes).
-7. Stubs externos: `StubPaymentService`, `StubMessagingService` — não implementar integrações reais.
+7. Stub externo: `StubMessagingService` (notificações). Pagamento é Mercado Pago real (credenciais de teste) no Billing Service — nunca commitar token.
+8. Status da OS muda só via `ServiceOrderStatusTransition` (eventos da saga); mensageria só via outbox (`SagaCommandSender`/`OutboxRecorder`).
+9. Código de mensageria é a cópia de referência: depois de alterar, rode `scripts/sync-messaging-lib.sh` para Billing/Execution.
 
 ## Perfis de usuário e permissões
 
 | Perfil         | Pode fazer                                                                    |
 |----------------|-------------------------------------------------------------------------------|
 | `receptionist` | CRUD clientes/veículos, criar OS, entregar veículo após pagamento             |
-| `mechanic`     | CRUD serviços/peças (estoque), criar OS, diagnóstico, execução, orçamento     |
-| `client`       | Consultar suas OSs, aprovar/cancelar orçamento, pagar OS                      |
+| `mechanic`     | CRUD serviços/peças (estoque), criar OS, itens da OS; diagnóstico/reparo no Execution |
+| `client`       | Consultar suas OSs; aprovar/rejeitar orçamento e pagar no Billing             |
 
 Middleware: `role:receptionist`, `role:mechanic`, `role:client`, ou combinado `role:receptionist,mechanic`.
 
-## Fluxo de status da OS
+## Fluxo de status da OS (conduzido pela saga — ver `docs/architecture/diagrams/fase4/saga-state-machine.mmd`)
 
 ```
 received → in_diagnosis → awaiting_approval → approved → in_execution → finalized → delivered
-                                           └──────────→ cancelled
+   └──────────────┴──────────────┴──→ cancelled (compensação da saga)
 ```
 
 Mensagens disparadas automaticamente (via `MessagingServiceInterface`):
@@ -112,27 +115,35 @@ php artisan tinker                           # REPL
 
 ```
 app/
-├── Contracts/          # Interfaces: PaymentServiceInterface, MessagingServiceInterface
-├── Enums/              # UserRole, ServiceOrderStatus (com canTransitionTo)
+├── Domain/             # ServiceOrder (status, policy), Messaging (MessageEnvelope), Saga (enums)
+├── Application/
+│   ├── Ports/          # MessagePublisher, MessageConsumer, MessageRouter, ServiceOrderRepository
+│   ├── Messaging/      # OutboxRecorder, OutboxRelay, InboxProcessor
+│   ├── Saga/           # StartServiceOrderSaga, *Phase (diagnosis/budget/repair/payment),
+│   │                   # SagaCompensator, SagaWatchdog, StockReserver, ServiceOrderStatusTransition
+│   └── ServiceOrder/   # OpenServiceOrder, GetServiceOrderStatus, ListServiceOrders
+├── Infrastructure/     # Messaging/RabbitMq/*, Persistence/Eloquent/*
+├── Console/Commands/   # bus:work, saga:watchdog
+├── Contracts/          # MessagingServiceInterface
 ├── Http/
-│   ├── Controllers/Api/V1/  # AuthController, ClientController, VehicleController,
-│   │                        # ServiceController, ItemController, ServiceOrderController,
-│   │                        # WebhookController (com anotações @OA\*)
-│   ├── Middleware/     # EnsureRole — verifica UserRole no token Sanctum
-│   ├── Requests/       # StoreXxx / UpdateXxx (todos com authorize(): true)
-│   └── Resources/      # UserResource, VehicleResource, ServiceResource,
-│                       # ItemResource, ServiceOrderResource
-├── Jobs/               # SendFineNotificationJob (dispatchable, shouldQueue)
-├── Models/             # User, Vehicle, Service, Item, ServiceOrder,
-│                       # ServiceOrderService, ServiceOrderItem
-├── Providers/          # AppServiceProvider (binds stubs às interfaces)
-└── Services/           # StubPaymentService, StubMessagingService
+│   ├── Controllers/Api/V1/  # Auth (inclui /auth/verify p/ ForwardAuth), Client, Vehicle,
+│   │                        # Service, Item, ServiceOrder, ServiceOrderHistory, Webhook, Internal
+│   ├── Middleware/     # EnsureRole, AssignCorrelationId, LogRequestLatency, EnsureInternalApiKey
+│   ├── Requests/       # StoreXxx / UpdateXxx
+│   └── Resources/
+├── Jobs/               # SendFineNotificationJob
+├── Models/             # User, Vehicle, Service, Item, ServiceOrder(+Item/Service), SagaInstance,
+│                       # SagaStep, OutboxMessage, ProcessedMessage, StockReservation, StatusHistory
+├── Providers/          # AppServiceProvider (stubs, RabbitMQ adapters)
+└── Services/           # StubMessagingService
 
+features/               # Gherkin (pt) — executado por tests/Bdd via PHPUnit
+k8s/                    # manifests do namespace `os` (kustomize) — ver k8s/README.md
 routes/
 ├── api.php             # /api/v1/* (todos autenticados exceto login)
 ├── webhook.php         # POST /webhook/messaging (público, sem /api)
 ├── web.php             # welcome page
-└── console.php         # Schedule::job(SendFineNotificationJob)->hourly()
+└── console.php         # SendFineNotificationJob (hourly), saga:watchdog (every minute)
 
 database/
 ├── factories/          # UserFactory (receptionist/mechanic/client), VehicleFactory,

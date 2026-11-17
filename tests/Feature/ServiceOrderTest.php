@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Contracts\MessagingServiceInterface;
-use App\Contracts\PaymentServiceInterface;
 use App\Domain\ServiceOrder\ServiceOrderStatus;
 use App\Models\Item;
 use App\Models\Service;
@@ -13,6 +12,7 @@ use App\Models\ServiceOrderItem;
 use App\Models\User;
 use App\Models\Vehicle;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Support\SagaDriver;
 use Tests\TestCase;
 
 class ServiceOrderTest extends TestCase
@@ -306,136 +306,6 @@ class ServiceOrderTest extends TestCase
             ->assertJsonPath('items.0.total_quantity', 50);
     }
 
-    public function test_full_flow_generate_budget_advances_status(): void
-    {
-        $order = ServiceOrder::factory()->create([
-            'client_id' => $this->client->id,
-            'vehicle_id' => $this->vehicle->id,
-            'status' => ServiceOrderStatus::IN_DIAGNOSIS,
-        ]);
-
-        Service::factory()->create(['price' => 200.00]);
-        $service = Service::first();
-        $order->orderServices()->create([
-            'service_id' => $service->id,
-            'quantity' => 1,
-            'unit_price' => $service->price,
-        ]);
-
-        $this->actingAs($this->mechanic)
-            ->postJson("/api/v1/service-orders/{$order->id}/generate-budget")
-            ->assertOk()
-            ->assertJsonPath('status', 'awaiting_approval')
-            ->assertJsonPath('total_amount', '200.00');
-    }
-
-    public function test_generate_budget_fails_if_not_in_diagnosis(): void
-    {
-        $order = ServiceOrder::factory()->received()->create([
-            'client_id' => $this->client->id,
-            'vehicle_id' => $this->vehicle->id,
-        ]);
-
-        $this->actingAs($this->mechanic)
-            ->postJson("/api/v1/service-orders/{$order->id}/generate-budget")
-            ->assertUnprocessable();
-    }
-
-    public function test_client_can_approve_order(): void
-    {
-        $order = ServiceOrder::factory()->awaitingApproval()->create([
-            'client_id' => $this->client->id,
-            'vehicle_id' => $this->vehicle->id,
-        ]);
-
-        $this->actingAs($this->client)
-            ->postJson("/api/v1/service-orders/{$order->id}/approve")
-            ->assertOk()
-            ->assertJsonPath('status', 'approved');
-    }
-
-    public function test_client_can_cancel_order(): void
-    {
-        $order = ServiceOrder::factory()->awaitingApproval()->create([
-            'client_id' => $this->client->id,
-            'vehicle_id' => $this->vehicle->id,
-        ]);
-
-        $this->actingAs($this->client)
-            ->postJson("/api/v1/service-orders/{$order->id}/cancel")
-            ->assertOk()
-            ->assertJsonPath('status', 'cancelled');
-    }
-
-    public function test_other_client_cannot_approve_order(): void
-    {
-        $otherClient = User::factory()->client()->create();
-        $order = ServiceOrder::factory()->awaitingApproval()->create([
-            'client_id' => $this->client->id,
-            'vehicle_id' => $this->vehicle->id,
-        ]);
-
-        $this->actingAs($otherClient)
-            ->postJson("/api/v1/service-orders/{$order->id}/approve")
-            ->assertForbidden();
-    }
-
-    public function test_mechanic_can_start_execution(): void
-    {
-        $order = ServiceOrder::factory()->approved()->create([
-            'client_id' => $this->client->id,
-            'vehicle_id' => $this->vehicle->id,
-        ]);
-
-        $this->actingAs($this->mechanic)
-            ->postJson("/api/v1/service-orders/{$order->id}/start-execution")
-            ->assertOk()
-            ->assertJsonPath('status', 'in_execution');
-    }
-
-    public function test_mechanic_can_finalize_order(): void
-    {
-        $order = ServiceOrder::factory()->create([
-            'client_id' => $this->client->id,
-            'vehicle_id' => $this->vehicle->id,
-            'status' => ServiceOrderStatus::IN_EXECUTION,
-        ]);
-
-        $this->actingAs($this->mechanic)
-            ->postJson("/api/v1/service-orders/{$order->id}/finalize")
-            ->assertOk()
-            ->assertJsonPath('status', 'finalized');
-
-        $this->assertDatabaseHas('service_orders', [
-            'id' => $order->id,
-            'status' => 'finalized',
-        ]);
-    }
-
-    public function test_client_can_pay_finalized_order(): void
-    {
-        $this->mock(PaymentServiceInterface::class, function ($mock) {
-            $mock->shouldReceive('processPayment')->andReturn([
-                'success' => true,
-                'transaction_id' => 'TXN-MOCK123',
-                'message' => 'Pagamento processado',
-            ]);
-        });
-
-        $order = ServiceOrder::factory()->finalized()->create([
-            'client_id' => $this->client->id,
-            'vehicle_id' => $this->vehicle->id,
-        ]);
-
-        $this->actingAs($this->client)
-            ->postJson("/api/v1/service-orders/{$order->id}/pay")
-            ->assertOk()
-            ->assertJsonPath('transaction_id', 'TXN-MOCK123');
-
-        $this->assertDatabaseHas('service_orders', ['id' => $order->id]);
-        $this->assertNotNull(ServiceOrder::find($order->id)->paid_at);
-    }
-
     public function test_receptionist_can_deliver_paid_order(): void
     {
         $order = ServiceOrder::factory()->finalized()->create([
@@ -448,6 +318,21 @@ class ServiceOrderTest extends TestCase
             ->postJson("/api/v1/service-orders/{$order->id}/deliver")
             ->assertOk()
             ->assertJsonPath('status', 'delivered');
+
+        $this->assertDatabaseHas('service_order_status_history', ['service_order_id' => $order->id, 'to_status' => 'delivered']);
+    }
+
+    public function test_delivering_completes_the_running_saga(): void
+    {
+        $driver = new SagaDriver;
+        $order = $driver->openOrder();
+        $order->update(['status' => ServiceOrderStatus::FINALIZED, 'paid_at' => now()]);
+
+        $this->actingAs($this->receptionist)
+            ->postJson("/api/v1/service-orders/{$order->id}/deliver")
+            ->assertOk();
+
+        $this->assertSame('completed', $driver->saga($order)->status->value);
     }
 
     public function test_receptionist_cannot_deliver_unpaid_order(): void

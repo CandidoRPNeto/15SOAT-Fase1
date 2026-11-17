@@ -54,4 +54,11 @@ class ServiceOrderStatusTest extends TestCase
         $this->assertSame('Finalizada', ServiceOrderStatus::FINALIZED->label());
         $this->assertSame('Entregue', ServiceOrderStatus::DELIVERED->label());
     }
+
+    public function test_received_and_in_diagnosis_can_be_cancelled_by_saga_compensation(): void
+    {
+        $this->assertTrue(ServiceOrderStatus::RECEIVED->canTransitionTo(ServiceOrderStatus::CANCELLED));
+        $this->assertTrue(ServiceOrderStatus::IN_DIAGNOSIS->canTransitionTo(ServiceOrderStatus::CANCELLED));
+        $this->assertFalse(ServiceOrderStatus::IN_EXECUTION->canTransitionTo(ServiceOrderStatus::CANCELLED));
+    }
 }

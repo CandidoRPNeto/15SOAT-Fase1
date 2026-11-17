@@ -11,3 +11,6 @@ Artisan::command('inspire', function () {
 
 // Verifica OS finalizadas há mais de 24h sem retirada e notifica o cliente
 Schedule::job(new SendFineNotificationJob)->hourly();
+
+// Saga orquestrada (ADR-010): reenvia ou compensa passos sem resposta.
+Schedule::command('saga:watchdog')->everyMinute()->withoutOverlapping();

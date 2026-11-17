@@ -1,0 +1,67 @@
+# API HTTP do OS Service. O CMD da imagem é sobrescrito: aqui só cacheia
+# config, gera o Swagger e serve — a migração roda no Job (jobs/migrate.yaml).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: os-api
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: os-api
+  template:
+    metadata:
+      labels:
+        app: os-api
+        tags.datadoghq.com/service: os-service
+    spec:
+      containers:
+        - name: app
+          image: os-service
+          imagePullPolicy: IfNotPresent
+          command: ["sh", "-c", "php artisan config:cache && php artisan l5-swagger:generate && php artisan serve --host=0.0.0.0 --port=8000"]
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - configMapRef: { name: os-config }
+            - secretRef: { name: os-secret }
+          readinessProbe:
+            httpGet: { path: /up, port: 8000 }
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /up, port: 8000 }
+            initialDelaySeconds: 30
+            periodSeconds: 20
+          resources:
+            requests: { cpu: "100m", memory: "192Mi" }
+            limits: { cpu: "500m", memory: "512Mi" }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: os-api
+spec:
+  selector:
+    app: os-api
+  ports:
+    - port: 8000
+      targetPort: 8000
+---
+# Requer metrics-server (já instalado no kind workshop-os, ver infra/README.md).
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: os-api
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: os-api
+  minReplicas: 2
+  maxReplicas: 4
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target: { type: Utilization, averageUtilization: 70 }

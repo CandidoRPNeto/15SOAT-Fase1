@@ -10,7 +10,11 @@ use OpenApi\Attributes as OA;
     description: 'API para gerenciamento de ordens de serviço de oficina mecânica. Perfis: receptionist, mechanic, client.',
     contact: new OA\Contact(email: 'dev@workshop.com')
 )]
-#[OA\Server(url: 'http://localhost:8000', description: 'Servidor local')]
+// URL dirigida por ambiente (constante declarada em config/l5-swagger.php,
+// alimentada por L5_SWAGGER_CONST_HOST). Estava fixa em :8000, o que fazia o
+// "Try it out" do Swagger bater fora do cluster — no kind quem atende é o
+// Traefik em :30080, e nesta máquina o :8000 é outro projeto.
+#[OA\Server(url: L5_SWAGGER_CONST_HOST, description: 'Servidor local')]
 #[OA\SecurityScheme(
     securityScheme: 'sanctum',
     type: 'http',

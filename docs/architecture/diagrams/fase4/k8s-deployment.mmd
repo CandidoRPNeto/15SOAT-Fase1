@@ -1,0 +1,30 @@
+%% Visão de implantação no cluster kind
+flowchart TB
+    Host["Host :30080"] --> TR
+    subgraph traefik["ns traefik"]
+        TR["Deployment traefik<br/>Service NodePort 30080<br/>ConfigMap traefik-dynamic"]
+    end
+    subgraph platform["ns platform"]
+        RMQ["StatefulSet rabbitmq<br/>PVC 1Gi"]
+    end
+    subgraph os["ns os"]
+        OA["Deployment os-api ×2<br/>HPA 2–4"] 
+        OW["Deployment os-worker<br/>bus-worker + scheduler"]
+        OP["StatefulSet os-postgres"]
+        OJ["Job os-migrate"]
+    end
+    subgraph billing["ns billing"]
+        BA["Deployment billing-api<br/>HPA 1–4"]
+        BWk["Deployment billing-worker<br/>bus-worker + scheduler"]
+        BP["StatefulSet billing-postgres"]
+    end
+    subgraph execution["ns execution"]
+        EA["Deployment execution-api<br/>HPA 1–4"]
+        EWk["Deployment execution-worker"]
+        EM["StatefulSet execution-mongo<br/>replica set rs0"]
+    end
+    TR --> OA & BA & EA
+    OW & BWk & EWk --> RMQ
+    OA & OW --> OP
+    BA & BWk --> BP
+    EA & EWk --> EM

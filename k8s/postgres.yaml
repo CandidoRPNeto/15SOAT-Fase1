@@ -1,78 +1,60 @@
+# Banco próprio do OS Service (PostgreSQL). Nenhum outro serviço o acessa.
 apiVersion: v1
-kind: PersistentVolumeClaim
+kind: Service
 metadata:
-  name: workshop-os-postgres-pvc
+  name: os-postgres
 spec:
-  accessModes: ["ReadWriteOnce"]
-  resources:
-    requests:
-      storage: 1Gi
+  clusterIP: None
+  selector:
+    app: os-postgres
+  ports:
+    - port: 5432
 ---
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
-  name: workshop-os-postgres
+  name: os-postgres
 spec:
+  serviceName: os-postgres
   replicas: 1
-  strategy:
-    type: Recreate
   selector:
     matchLabels:
-      app: workshop-os-postgres
+      app: os-postgres
   template:
     metadata:
       labels:
-        app: workshop-os-postgres
+        app: os-postgres
     spec:
       containers:
         - name: postgres
           image: postgres:16-alpine
-          ports:
-            - containerPort: 5432
+          imagePullPolicy: IfNotPresent
           env:
             - name: POSTGRES_DB
-              valueFrom:
-                configMapKeyRef:
-                  name: workshop-os-config
-                  key: DB_DATABASE
+              valueFrom: { configMapKeyRef: { name: os-config, key: DB_DATABASE } }
             - name: POSTGRES_USER
-              valueFrom:
-                configMapKeyRef:
-                  name: workshop-os-config
-                  key: DB_USERNAME
+              valueFrom: { configMapKeyRef: { name: os-config, key: DB_USERNAME } }
             - name: POSTGRES_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: workshop-os-secret
-                  key: DB_PASSWORD
+              valueFrom: { secretKeyRef: { name: os-secret, key: DB_PASSWORD } }
+          ports:
+            - containerPort: 5432
           volumeMounts:
-            - name: postgres-storage
+            - name: data
               mountPath: /var/lib/postgresql/data
-              # subPath evita o Postgres reclamar de "lost+found" no ponto de
-              # montagem raiz de um PVC recém-criado.
+              # subPath evita o "lost+found" na raiz de um PVC recém-criado.
               subPath: postgres
           readinessProbe:
-            exec:
-              command: ["pg_isready", "-U", "postgres"]
+            exec: { command: ["pg_isready", "-U", "postgres"] }
             initialDelaySeconds: 5
             periodSeconds: 5
-          livenessProbe:
-            exec:
-              command: ["pg_isready", "-U", "postgres"]
-            initialDelaySeconds: 10
-            periodSeconds: 10
-      volumes:
-        - name: postgres-storage
-          persistentVolumeClaim:
-            claimName: workshop-os-postgres-pvc
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: workshop-os-postgres
-spec:
-  selector:
-    app: workshop-os-postgres
-  ports:
-    - port: 5432
-      targetPort: 5432
+          resources:
+            requests: { cpu: "50m", memory: "128Mi" }
+            limits: { cpu: "500m", memory: "512Mi" }
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi

@@ -1,0 +1,13 @@
+%% Pipeline independente de cada microsserviço (GitHub Actions)
+flowchart LR
+    PR["Pull Request<br/>(main/master protegida)"] --> T
+    Push["push na main<br/>(merge do PR)"] --> T
+    subgraph GH["GitHub-hosted runners"]
+        T["test<br/>PHPUnit + BDD (Gherkin)<br/>cobertura ≥ 80%<br/>RabbitMQ / MongoDB reais"] --> Q["quality<br/>Pint + SonarCloud<br/>quality gate"]
+        Q --> B["build<br/>imagem Docker → GHCR"]
+    end
+    subgraph LOCAL["Runner self-hosted (label kind)"]
+        D["deploy<br/>kind load · kubectl apply -k<br/>migrate Job · rollout · smoke test"]
+    end
+    B -->|"só em push na main"| D
+    D --> K[("cluster kind<br/>workshop-os")]

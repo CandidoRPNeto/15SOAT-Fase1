@@ -2,10 +2,12 @@
 
 namespace Tests\Unit;
 
+use App\Application\Saga\StartServiceOrderSaga;
 use App\Application\ServiceOrder\OpenServiceOrder;
 use App\Contracts\MessagingServiceInterface;
 use App\Infrastructure\Persistence\Eloquent\EloquentServiceOrderRepository;
 use App\Models\Item;
+use App\Models\SagaInstance;
 use App\Models\Service;
 use App\Models\ServiceItem;
 use App\Models\User;
@@ -34,6 +36,7 @@ class OpenServiceOrderTest extends TestCase
         $this->useCase = new OpenServiceOrder(
             new EloquentServiceOrderRepository,
             app(MessagingServiceInterface::class),
+            app(StartServiceOrderSaga::class),
         );
 
         $this->client = User::factory()->client()->create();
@@ -45,7 +48,7 @@ class OpenServiceOrderTest extends TestCase
         $order = $this->useCase->execute([
             'client_id' => $this->client->id,
             'vehicle_id' => $this->vehicle->id,
-        ]);
+        ], 'corr-test');
 
         $this->assertNotNull($order->id);
         $this->assertSame('received', $order->status->value);
@@ -61,7 +64,7 @@ class OpenServiceOrderTest extends TestCase
             'items' => [
                 ['item_id' => $item->id, 'quantity' => 2],
             ],
-        ]);
+        ], 'corr-test');
 
         $this->assertDatabaseHas('service_order_items', [
             'service_order_id' => $order->id,
@@ -82,7 +85,7 @@ class OpenServiceOrderTest extends TestCase
             'services' => [
                 ['service_id' => $service->id],
             ],
-        ]);
+        ], 'corr-test');
 
         $this->assertDatabaseHas('service_order_services', [
             'service_order_id' => $order->id,
@@ -93,5 +96,19 @@ class OpenServiceOrderTest extends TestCase
             'item_id' => $item->id,
             'quantity' => 3,
         ]);
+    }
+
+    public function test_starts_the_saga_and_queues_the_diagnosis_command_atomically(): void
+    {
+        $order = $this->useCase->execute([
+            'client_id' => $this->client->id,
+            'vehicle_id' => $this->vehicle->id,
+        ], 'corr-saga');
+
+        $saga = SagaInstance::where('service_order_id', $order->id)->firstOrFail();
+        $this->assertSame('running', $saga->status->value);
+        $this->assertSame('corr-saga', $saga->correlation_id);
+        $this->assertDatabaseHas('outbox_messages', ['type' => 'cmd.execution.enqueue_diagnosis']);
+        $this->assertDatabaseHas('service_order_status_history', ['service_order_id' => $order->id, 'to_status' => 'received']);
     }
 }

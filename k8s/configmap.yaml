@@ -1,24 +1,44 @@
+# OS Service (Fase 4, namespace `os`). Valores sensíveis ficam no Secret
+# `os-secret`, criado por 15SOAT-Fase1-kubernetes/scripts/bootstrap-secrets.sh.
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: workshop-os-config
+  name: os-config
 data:
-  APP_NAME: "Workshop OS"
+  APP_NAME: "OS Service"
   APP_ENV: "production"
   APP_DEBUG: "false"
-  APP_URL: "http://localhost:8000"
+  APP_URL: "http://localhost:30080"
   APP_LOCALE: "pt_BR"
   APP_FALLBACK_LOCALE: "pt_BR"
-  LOG_CHANNEL: "stack"
-  LOG_LEVEL: "warning"
+  # Logs JSON em stderr, coletados pelo Datadog (correlation_id + saga_id).
+  LOG_CHANNEL: "json"
+  LOG_LEVEL: "info"
   DB_CONNECTION: "pgsql"
-  # Nome do Service do Postgres (k8s/postgres.yaml) — resolvido via DNS interno do cluster.
-  DB_HOST: "workshop-os-postgres"
+  DB_HOST: "os-postgres"
   DB_PORT: "5432"
   DB_DATABASE: "workshop_os"
   DB_USERNAME: "postgres"
   QUEUE_CONNECTION: "database"
   CACHE_STORE: "database"
-  SESSION_DRIVER: "database"
+  SESSION_DRIVER: "array"
+  RABBITMQ_HOST: "rabbitmq.platform.svc.cluster.local"
+  RABBITMQ_PORT: "5672"
+  RABBITMQ_QUEUE: "os.inbox"
+  SAGA_STEP_TIMEOUT_SECONDS: "120"
+  SAGA_MAX_ATTEMPTS: "3"
   L5_SWAGGER_GENERATE_ALWAYS: "false"
-  L5_SWAGGER_CONST_HOST: "http://localhost:8000"
+  L5_SWAGGER_CONST_HOST: "http://localhost:30080"
+  CLIENT_JWT_ISSUER: "15SOAT-Fase1-lambda"
+  # Datadog APM — tracer embutido na imagem. Agent no host (gateway da rede
+  # docker `kind`); DD_TRACE_AGENT_URL é obrigatório (o sidecar ignora
+  # DD_AGENT_HOST). Ver memória/README de observabilidade.
+  DD_SERVICE: "os-service"
+  DD_ENV: "dev"
+  DD_VERSION: "4.0.0"
+  DD_TRACE_ENABLED: "true"
+  DD_TRACE_CLI_ENABLED: "false"
+  DD_LOGS_INJECTION: "true"
+  DD_AGENT_HOST: "172.22.0.1"
+  DD_TRACE_AGENT_PORT: "8126"
+  DD_TRACE_AGENT_URL: "http://172.22.0.1:8126"

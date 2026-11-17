@@ -6,7 +6,7 @@
 
 ## Contexto
 
-[`evolucao_fase3`](../../../evolucao_fase3) exige, entre outros pontos: API
+`evolucao_fase3` (removido no reset da Fase 4; `git show 91319ed:evolucao_fase3`) exige, entre outros pontos: API
 Gateway, Function Serverless para autenticação via CPF, banco de dados
 gerenciado, cluster Kubernetes com escalabilidade, e observabilidade via
 Datadog — tudo com deploy automático para a nuvem. A Fase 2 nunca chegou a

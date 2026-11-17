@@ -1,183 +1,148 @@
 name: CI/CD
 
+# Pipeline independente deste microsserviço (Fase 4):
+# test (unit + feature + BDD, cobertura >= 80%) → quality (Pint + SonarCloud)
+# → build (imagem no GHCR) → deploy (runner self-hosted → kind, ADR-014).
 on:
   push:
-    branches: [master]
+    branches: [master, homolog]
   pull_request:
-    branches: [master]
+    branches: [master, homolog]
 
 permissions:
   contents: read
 
+env:
+  IMAGE: ghcr.io/candidorpneto/15soat-fase1
+
 jobs:
-  # ---- Stage 1 (build) + Stage 2 (test) ----
   test:
     runs-on: ubuntu-latest
+    services:
+      # Broker real para os testes de integração dos adapters RabbitMQ.
+      rabbitmq:
+        image: rabbitmq:3.13
+        ports: ["5672:5672"]
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q ping" --health-interval 10s --health-timeout 10s --health-retries 10
+    env:
+      RABBITMQ_TEST_HOST: 127.0.0.1
     steps:
       - uses: actions/checkout@v4
-
-      - name: Setup PHP
-        uses: shivammathur/setup-php@v2
+      - uses: shivammathur/setup-php@v2
         with:
           php-version: "8.4"
-          extensions: pdo, pdo_sqlite, pdo_pgsql, mbstring, xml, bcmath, zip
-          coverage: xdebug
+          extensions: pdo_sqlite, pdo_pgsql, mbstring, xml, bcmath, zip, sockets
+          coverage: pcov
           tools: composer
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      # A welcome page usa @vite; sem o build o ExampleTest falha por manifest ausente.
+      - uses: actions/setup-node@v4
         with:
           node-version: "22"
           cache: npm
-
-      - name: Install PHP dependencies
-        run: composer install --no-interaction --prefer-dist
-
-      - name: Install Node dependencies and build assets
-        run: |
-          npm ci
-          npm run build
+      - name: Build frontend assets
+        run: npm ci && npm run build
 
       - name: Prepare environment
-        run: |
-          cp .env.example .env
-          php artisan key:generate
+        run: cp .env.example .env && php artisan key:generate
 
-      # Testes rodam em SQLite :memory: (ver phpunit.xml) — não precisa de
-      # serviço de banco no CI. --min=80 falha o build se a cobertura cair
-      # abaixo disso (cobertura atual: ~88%, ver coverage-report no artifact).
-      - name: Run test suite with coverage
-        env:
-          XDEBUG_MODE: coverage
-        run: php artisan test --coverage --min=80 --coverage-clover=coverage.xml --coverage-html=coverage-html
+      - name: Tests with coverage gate (>= 80%)
+        run: php artisan test --coverage --min=80 --coverage-clover=coverage.xml --log-junit=test-results.xml
 
-      - name: Upload coverage report
+      - uses: actions/upload-artifact@v4
         if: always()
-        uses: actions/upload-artifact@v4
         with:
-          name: coverage-report
+          name: coverage
           path: |
             coverage.xml
-            coverage-html/
+            test-results.xml
           retention-days: 14
 
-  # ---- Stage 3: build + push da imagem Docker ----
-  docker-build:
+  quality:
     needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: pdo_sqlite, pdo_pgsql, mbstring, xml, bcmath, zip, sockets
+          tools: composer
+
+      - name: Code style (Pint)
+        run: composer install --no-interaction --prefer-dist --no-progress && ./vendor/bin/pint --test
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: coverage
+
+      - name: Check SonarCloud token
+        id: sonar
+        run: echo "enabled=${{ secrets.SONAR_TOKEN != '' }}" >> "$GITHUB_OUTPUT"
+
+      # Quality gate do SonarCloud (cobertura, bugs, code smells, duplicação).
+      # Sem o secret SONAR_TOKEN o passo é pulado com aviso — Pint ainda roda.
+      - name: SonarCloud scan + quality gate
+        if: steps.sonar.outputs.enabled == 'true'
+        uses: SonarSource/sonarqube-scan-action@v5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: https://sonarcloud.io
+        with:
+          args: -Dsonar.qualitygate.wait=true
+
+      - name: SonarCloud not configured
+        if: steps.sonar.outputs.enabled != 'true'
+        run: echo "::warning::SONAR_TOKEN not set — SonarCloud quality gate skipped (see README)."
+
+  build:
+    needs: [test, quality]
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
-    outputs:
-      image: ${{ steps.image.outputs.name }}:${{ github.sha }}
     steps:
       - uses: actions/checkout@v4
-
-      - name: Compute image name (GHCR exige minúsculas)
-        id: image
-        run: |
-          echo "name=ghcr.io/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
-
       - uses: docker/setup-buildx-action@v3
-
-      - name: Log in to GHCR
+      - uses: docker/login-action@v3
         if: github.event_name == 'push'
-        uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build and push
-        uses: docker/build-push-action@v6
+      - uses: docker/build-push-action@v6
         with:
           context: .
           push: ${{ github.event_name == 'push' }}
+          # `latest` só na branch protegida: push na homolog publica apenas o SHA.
           tags: |
-            ${{ steps.image.outputs.name }}:${{ github.sha }}
-            ${{ steps.image.outputs.name }}:latest
+            ${{ env.IMAGE }}:${{ github.sha }}
+            ${{ github.ref == 'refs/heads/master' && format('{0}:latest', env.IMAGE) || '' }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  # Secrets não são um contexto permitido em `jobs.<id>.if` — a checagem
-  # roda como step (onde secrets é sempre acessível) e expõe o resultado
-  # via output, consumido pelo `if` dos jobs de deploy abaixo.
-  check-kube-secret:
-    needs: docker-build
-    runs-on: ubuntu-latest
+  # Só em push na branch protegida (nunca em PR, nem de fork): o runner
+  # self-hosted fica nesta máquina e tem acesso ao cluster kind (ADR-014).
+  deploy:
+    needs: build
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
-    outputs:
-      has-kubeconfig: ${{ steps.check.outputs.has-kubeconfig }}
-    steps:
-      - name: Check KUBE_CONFIG secret
-        id: check
-        run: |
-          if [ -n "${{ secrets.KUBE_CONFIG }}" ]; then
-            echo "has-kubeconfig=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "has-kubeconfig=false" >> "$GITHUB_OUTPUT"
-          fi
-
-  # ---- Stage 4 (deploy-k8s) + Stage 6 (apply-manifests, idempotente por natureza no kubectl apply) ----
-  deploy-k8s:
-    needs: [docker-build, check-kube-secret]
-    runs-on: ubuntu-latest
-    # Só roda com um cluster real e alcançável configurado via secret
-    # KUBE_CONFIG; sem isso, kubectl cai no fallback localhost:8080 e falha.
-    if: needs.check-kube-secret.outputs.has-kubeconfig == 'true'
+    runs-on: [self-hosted, kind]
+    permissions:
+      contents: read
+      packages: read
+    concurrency:
+      group: deploy-kind-15soat-fase1
+      cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
-
-      - name: Setup kubectl
-        uses: azure/setup-kubectl@v4
-
-      # Requer o secret KUBE_CONFIG (kubeconfig do cluster alvo, em base64):
-      #   kubectl config view --raw | base64 -w0
-      - name: Configure kubeconfig
-        run: |
-          mkdir -p "$HOME/.kube"
-          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > "$HOME/.kube/config"
-
-      - name: Point manifests to the image just published
-        run: |
-          sed -i "s|workshop-os-app:latest|${{ needs.docker-build.outputs.image }}|" \
-            k8s/deployment.yaml k8s/migrate-job.yaml
-
-      - name: Apply manifests
-        run: |
-          kubectl apply -f k8s/configmap.yaml
-          kubectl apply -f k8s/secret.yaml
-          kubectl apply -f k8s/postgres.yaml
-          kubectl apply -f k8s/deployment.yaml
-          kubectl apply -f k8s/service.yaml
-          kubectl apply -f k8s/hpa.yaml
-
-      - name: Wait for app rollout
-        run: kubectl rollout status deployment/workshop-os-app --timeout=120s
-
-  # ---- Stage 5: deploy-db (migrations) ----
-  deploy-db:
-    needs: [docker-build, deploy-k8s]
-    runs-on: ubuntu-latest
-    if: needs.deploy-k8s.result == 'success'
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup kubectl
-        uses: azure/setup-kubectl@v4
-
-      - name: Configure kubeconfig
-        run: |
-          mkdir -p "$HOME/.kube"
-          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > "$HOME/.kube/config"
-
-      - name: Point migration job to the image just published
-        run: |
-          sed -i "s|workshop-os-app:latest|${{ needs.docker-build.outputs.image }}|" \
-            k8s/migrate-job.yaml
-
-      - name: Run migrate + seed job
-        run: |
-          kubectl delete job workshop-os-migrate --ignore-not-found
-          kubectl apply -f k8s/migrate-job.yaml
-          kubectl wait --for=condition=complete job/workshop-os-migrate --timeout=180s
+      - name: Log in to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+      - name: Deploy to kind (rollout + migrate + smoke test)
+        run: scripts/deploy-kind.sh "${IMAGE}:${{ github.sha }}"

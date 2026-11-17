@@ -3,6 +3,7 @@
 namespace App\Application\ServiceOrder;
 
 use App\Application\Ports\ServiceOrderRepository;
+use App\Application\Saga\StartServiceOrderSaga;
 use App\Contracts\MessagingServiceInterface;
 use App\Domain\ServiceOrder\ServiceOrderStatus;
 use App\Models\Item;
@@ -10,15 +11,35 @@ use App\Models\Service;
 use App\Models\ServiceOrder;
 use App\Models\ServiceOrderItem;
 use App\Models\ServiceOrderService;
+use Illuminate\Support\Facades\DB;
 
 class OpenServiceOrder
 {
     public function __construct(
         private readonly ServiceOrderRepository $repository,
         private readonly MessagingServiceInterface $messaging,
+        private readonly StartServiceOrderSaga $startSaga,
     ) {}
 
-    public function execute(array $data): ServiceOrder
+    /**
+     * Opens the order and starts its saga in one transaction (ADR-010).
+     *
+     * Example: $open->execute(['client_id' => 3, 'vehicle_id' => 1, 'services' => [['service_id' => 1]]], $correlationId);
+     *
+     * @param  array<string, mixed>  $data
+     */
+    public function execute(array $data, string $correlationId): ServiceOrder
+    {
+        $order = DB::transaction(fn () => $this->openWithSaga($data, $correlationId));
+
+        $order->load(['client', 'vehicle']);
+        $this->messaging->notifyOrderCreated($order);
+
+        return $order;
+    }
+
+    /** @param array<string, mixed> $data */
+    private function openWithSaga(array $data, string $correlationId): ServiceOrder
     {
         $order = $this->repository->create([
             'client_id' => $data['client_id'],
@@ -35,8 +56,7 @@ class OpenServiceOrder
             $this->attachItem($order, (int) $entry['item_id'], (int) ($entry['quantity'] ?? 1));
         }
 
-        $order->load(['client', 'vehicle']);
-        $this->messaging->notifyOrderCreated($order);
+        $this->startSaga->execute($order, $correlationId);
 
         return $order;
     }

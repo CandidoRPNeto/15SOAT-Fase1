@@ -1,0 +1,14 @@
+%% Estados da OS conduzidos pela saga
+stateDiagram-v2
+    [*] --> received: OS aberta<br/>cmd enqueue_diagnosis
+    received --> in_diagnosis: diagnosis_started
+    received --> cancelled: diagnosis_enqueue_failed / timeout
+    in_diagnosis --> awaiting_approval: budget_created
+    in_diagnosis --> cancelled: budget_creation_failed / timeout
+    awaiting_approval --> approved: budget_approved + estoque reservado<br/>+ repair_enqueued
+    awaiting_approval --> cancelled: budget_rejected / estoque insuficiente<br/>/ repair_enqueue_failed
+    approved --> in_execution: repair_started (pivot)
+    in_execution --> finalized: repair_finished<br/>cmd request_payment
+    finalized --> delivered: payment_confirmed + entrega
+    cancelled --> [*]: saga compensated
+    delivered --> [*]: saga completed
