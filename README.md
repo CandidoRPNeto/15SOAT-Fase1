@@ -1,5 +1,7 @@
 # 15SOAT - Tech Challenge — OS Service (Fases 1–4)
 
+[![CI/CD](https://github.com/CandidoRPNeto/15SOAT-Fase1/actions/workflows/ci-cd.yml/badge.svg?branch=master)](https://github.com/CandidoRPNeto/15SOAT-Fase1/actions/workflows/ci-cd.yml)
+
 API RESTful para gestão de ordens de serviço (OS) de uma oficina mecânica.
 Na Fase 4 este repositório é o **OS Service** e o **orquestrador da saga**
 entre os microsserviços (ver seção Fase 4).
@@ -202,7 +204,13 @@ A branch `master` é protegida: PR obrigatório e checks automáticos.
 ### Testes, BDD e cobertura
 
 - BDD: [`features/saga_ordem_de_servico.feature`](features/saga_ordem_de_servico.feature) (Gherkin pt-BR, 5 cenários: fluxo completo + 4 falhas). Roda no PHPUnit (`tests/Bdd`) via `behat/gherkin`, porque o Behat 3 não instala com Symfony 8.
-- Cobertura: **~89%** local (gate de 80% no CI). Evidência: artefato `coverage` de cada execução do workflow e o projeto no SonarCloud.
+- Cobertura medida no CI (PHPUnit + pcov, RabbitMQ real, gate `--min=80`):
+
+  | Execução | Testes | Cobertura |
+  |---|---|---|
+  | [CI/CD run 44142008421 (PR #8)](https://github.com/CandidoRPNeto/15SOAT-Fase1/actions/runs/44142008421) | 170 (415 assertions; unit + feature + 5 cenários BDD) | **94,6%** |
+
+  Relatório Clover: artefato `coverage` da execução. Local, sem broker: ~89%.
 - Swagger: http://localhost:30080/api/documentation (Billing em `/billing/api/documentation`, Execution em `/execution/api/documentation`). Postman: [`Tech_Challenge.postman_collection.json`](Tech_Challenge.postman_collection.json), pasta "Fase 4 — Saga".
 
 ## Fase 3 — operação corporativa
