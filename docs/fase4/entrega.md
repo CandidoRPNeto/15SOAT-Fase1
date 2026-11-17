@@ -64,7 +64,7 @@ Também concentra a compensação e permite testar o fluxo inteiro com BDD.
   dinheiro, estado da saga).
 - **MongoDB** (Execution, [ADR-012](../architecture/adrs/adr-012-mongodb-execution-store.md)):
   uma tarefa por OS com timeline embutida, append-only, sem joins.
-- **RabbitMQ**: filas duráveis, DLQ, topic routing e propagação de trace do Datadog.
+- **RabbitMQ**: filas duráveis, DLQ, topic routing; o contexto do trace viaja nos headers da mensagem.
 - **Traefik + ForwardAuth** ([ADR-013](../architecture/adrs/adr-013-gateway-forward-auth.md)):
   o login fica num lugar só, e os serviços novos não dependem de Sanctum.
 - **Mercado Pago** (Checkout Pro, credenciais de teste): a confirmação é feita por
@@ -75,8 +75,12 @@ Também concentra a compensação e permite testar o fluxo inteiro com BDD.
 - **Laravel 13 nos 3 serviços**: reaproveita padrões e testes. O código de mensageria é
   copiado por repositório para manter a autonomia de deploy
   ([ADR-015](../architecture/adrs/adr-015-per-repo-messaging-lib.md)).
-- **Observabilidade**: Datadog da Fase 3 (APM com trace distribuído via AMQP,
-  logs JSON com `correlation_id`/`saga_id`, monitores).
+- **Observabilidade** ([ADR-016](../architecture/adrs/adr-016-local-apm-jaeger.md)):
+  dd-trace da Fase 3 nas 3 imagens, agora enviando a um OpenTelemetry Collector
+  que repassa ao Jaeger (o plano free do Datadog não tem APM). Um único trace
+  cobre gateway → OS → outbox → RabbitMQ → Billing/Execution. O outbox guarda o
+  contexto do trace junto com a mensagem. Logs JSON com `correlation_id`/`saga_id`
+  e filas/DLQ na UI do RabbitMQ completam o monitoramento.
 
 ## Testes e qualidade
 
