@@ -1,0 +1,23 @@
+%% Rastreamento distribuído (ADR-016): dd-trace → OTel Collector → Jaeger
+flowchart LR
+    U(["Cliente / Recepção"]) -->|HTTP| TR["Traefik<br/>abre o trace<br/>injeta traceparent"]
+    subgraph OS["OS Service"]
+        API["os-api<br/>laravel.request"]
+        OB[("outbox_messages<br/>mensagem + trace_context")]
+        RL["os-worker<br/>outbox.relay"]
+        API -->|"mesma transação"| OB
+        OB -->|"loop do worker"| RL
+    end
+    TR --> API
+    RL -->|"publish com headers<br/>do trace"| MQ{{"RabbitMQ"}}
+    MQ -->|deliver| CH["execution-worker / billing-worker<br/>message.handle"]
+    CH -->|"evento de volta<br/>(mesmo trace)"| MQ
+    subgraph OBS["ns platform — observabilidade"]
+        COL["trace-agent<br/>OpenTelemetry Collector<br/>receiver datadog :8126<br/>filtro de ruído · ids 128 bits"]
+        JG[("Jaeger<br/>UI :16686<br/>traces + grafo de dependências")]
+        COL -->|OTLP| JG
+    end
+    API & RL & CH -.->|"spans dd-trace"| COL
+    TR -.->|OTLP| JG
+    LOG["logs JSON<br/>saga_id · correlation_id"] -.->|"demo/trace-saga.sh"| TL["linha do tempo<br/>da saga"]
+    API & CH -.-> LOG

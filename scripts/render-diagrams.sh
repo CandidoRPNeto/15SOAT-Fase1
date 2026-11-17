@@ -13,3 +13,22 @@ for src in "$dir"/*.mmd; do
   npx -y @mermaid-js/mermaid-cli@11.4.2 -q -p "$cfg" -i "$src" -o "$base.png" -b white -s 2
   echo "rendered $(basename "$base")"
 done
+
+# Copies for the delivery PDF, named in Portuguese and ordered as the PDF
+# reads them. `diagramas/` is git-ignored: the sources above are the record.
+out="$(cd "$(dirname "$0")/.." && pwd)/diagramas"
+mkdir -p "$out"
+declare -A pdf_names=(
+  [architecture-overview]=01-arquitetura-geral
+  [saga-happy-path]=02-saga-fluxo-feliz
+  [saga-compensation]=03-saga-compensacao
+  [saga-state-machine]=04-saga-maquina-de-estados
+  [distributed-tracing]=05-rastreamento-distribuido
+  [cicd-pipeline]=06-pipeline-ci-cd
+  [k8s-deployment]=07-implantacao-kubernetes
+)
+for name in "${!pdf_names[@]}"; do
+  cp "$dir/$name.png" "$out/${pdf_names[$name]}.png"
+done
+echo "PDF copies in $out"
+

@@ -9,21 +9,22 @@ Conteúdo de apoio para o PDF (o PDF em si é montado à parte).
 | OS Service (orquestrador da saga) | https://github.com/CandidoRPNeto/15SOAT-Fase1 |
 | Billing Service | https://github.com/CandidoRPNeto/15SOAT-Fase1-billing |
 | Execution Service | https://github.com/CandidoRPNeto/15SOAT-Fase1-execution |
-| Plataforma (Traefik, RabbitMQ, scripts de deploy/demo) | https://github.com/CandidoRPNeto/15SOAT-Fase1-kubernetes |
+| Plataforma (Traefik, RabbitMQ, Jaeger, scripts de deploy/demo) | https://github.com/CandidoRPNeto/15SOAT-Fase1-kubernetes |
 | Auth por CPF (Fase 3, reaproveitado) | https://github.com/CandidoRPNeto/15SOAT-Fase1-lambda |
 
-## Diagramas (`docs/architecture/diagrams/fase4/`, SVG e PNG)
+## Diagramas
 
-| Arquivo | Uso no PDF |
-|---|---|
-| `architecture-overview` | Diagrama geral: microsserviços, bancos e comunicação (obrigatório) |
-| `saga-happy-path` | Sequência da saga no fluxo completo |
-| `saga-compensation` | Falhas e compensação (estoque, fila lotada, serviço fora do ar) |
-| `saga-state-machine` | Estados da OS conduzidos pela saga |
-| `cicd-pipeline` | Pipeline independente por serviço |
-| `k8s-deployment` | Implantação no Kubernetes (namespaces e workloads) |
+Fontes Mermaid em `docs/architecture/diagrams/fase4/` (SVG e PNG ao lado). `scripts/render-diagrams.sh` gera as imagens e copia os PNG, numerados na ordem do PDF, para `diagramas/` (pasta local, fora do git).
 
-Regerar: `scripts/render-diagrams.sh`.
+| PNG em `diagramas/` | Fonte | Uso no PDF |
+|---|---|---|
+| `01-arquitetura-geral` | `architecture-overview` | Diagrama geral: microsserviços, bancos e comunicação (obrigatório) |
+| `02-saga-fluxo-feliz` | `saga-happy-path` | Estratégia da saga: sequência no fluxo completo (obrigatório) |
+| `03-saga-compensacao` | `saga-compensation` | Estratégia da saga: falhas e compensação (estoque, fila lotada, serviço fora do ar) |
+| `04-saga-maquina-de-estados` | `saga-state-machine` | Estados da OS conduzidos pela saga |
+| `05-rastreamento-distribuido` | `distributed-tracing` | Observabilidade: trace atravessando outbox e RabbitMQ até o Jaeger (ADR-016) |
+| `06-pipeline-ci-cd` | `cicd-pipeline` | Pipeline independente por serviço |
+| `07-implantacao-kubernetes` | `k8s-deployment` | Implantação no Kubernetes (namespaces e workloads) |
 
 ## Estratégia do Saga Pattern — texto-base
 
