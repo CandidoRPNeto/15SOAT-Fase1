@@ -14,4 +14,5 @@ with `deploy-kind.sh`; smoke tests and e2e demos green.
 - [ ] SonarCloud: import the 3 service repos (org `candidorpneto`), add `SONAR_TOKEN` secret to each
 - [x] Self-hosted runners ×3 (`systemctl --user status 'actions-runner-*'`); fork PRs need approval (`all_external_contributors`)
 - [ ] Mercado Pago: `MERCADOPAGO_ACCESS_TOKEN=TEST-...` + `PAYMENT_GATEWAY=mercadopago` in `~/.workshop-os/secrets/billing.env`, re-run `bootstrap-secrets.sh`, restart billing pods
-- [ ] First green pipeline with deploy on each repo (evidence for README/video)
+- [x] First green pipeline with deploy: billing run 44128010236, execution run 44128027026 (OS deploys on merge of PR #8)
+- [x] Coverage evidence from CI in each README + `docs/fase4/entrega.md`

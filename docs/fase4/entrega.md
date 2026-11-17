@@ -80,10 +80,12 @@ Também concentra a compensação e permite testar o fluxo inteiro com BDD.
 
 ## Testes e qualidade
 
-| Serviço | Testes | Cobertura (local, sem broker) | BDD |
-|---|---|---|---|
-| OS | PHPUnit (unit + feature) | ~89% | `features/saga_ordem_de_servico.feature` (5 cenários) |
-| Billing | PHPUnit | ~85% | — |
-| Execution | PHPUnit (MongoDB real) | ~81% | — |
+| Serviço | Testes (CI) | Cobertura (CI) | Execução | BDD |
+|---|---|---|---|---|
+| OS | 170 (unit + feature + BDD) | **94,6%** | [run 44142008421](https://github.com/CandidoRPNeto/15SOAT-Fase1/actions/runs/44142008421) | `features/saga_ordem_de_servico.feature` (5 cenários) |
+| Billing | 50 | **99,3%** | [run 44128010236](https://github.com/CandidoRPNeto/15SOAT-Fase1-billing/actions/runs/44128010236) | — |
+| Execution | 33 (MongoDB real) | **99,0%** | [run 44128027026](https://github.com/CandidoRPNeto/15SOAT-Fase1-execution/actions/runs/44128027026) | — |
 
-No CI, os testes rodam também contra RabbitMQ real (cobertura maior). O gate é `--min=80`.
+No CI os testes rodam contra RabbitMQ real (PostgreSQL/MongoDB também no Execution); o gate é `--min=80`. Local, sem broker: ~89% / ~85% / ~81%.
+
+Deploy automático validado: os runs do Billing e do Execution acima concluíram o job `deploy` no runner self-hosted (kind). Os Deployments rodam a imagem `ghcr.io/candidorpneto/15soat-fase1-<svc>:<sha do commit>`.
