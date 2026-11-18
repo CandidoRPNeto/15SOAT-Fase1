@@ -6,6 +6,8 @@ flowchart TB
     end
     subgraph platform["ns platform"]
         RMQ["StatefulSet rabbitmq<br/>PVC 1Gi"]
+        TA["Deployment trace-agent<br/>OTel Collector :8126"]
+        JG["Deployment jaeger<br/>UI :16686 · OTLP :4317"]
     end
     subgraph os["ns os"]
         OA["Deployment os-api ×2<br/>HPA 2–4"] 

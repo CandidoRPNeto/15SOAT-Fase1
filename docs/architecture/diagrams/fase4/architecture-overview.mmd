@@ -26,12 +26,13 @@ flowchart TB
         end
         subgraph PNS["ns platform"]
             MQ{{"RabbitMQ<br/>exchange topic 'workshop'<br/>+ DLQ"}}
+            OTEL["trace-agent<br/>OTel Collector"]
+            JG[("Jaeger<br/>traces distribuídos")]
         end
     end
     subgraph EXT["Serviços externos"]
         direction LR
         MP[["Mercado Pago<br/>Checkout Pro (teste)"]]
-        DD[("Datadog<br/>APM · logs · monitores")]
     end
 
     Client & Staff -->|HTTPS REST| Traefik
@@ -50,4 +51,6 @@ flowchart TB
     BW <-->|"cmd.billing.* / evt.billing.*"| MQ
     EW <-->|"cmd.execution.* / evt.execution.*"| MQ
     BW -->|"preferência + busca de pagamento"| MP
-    K8S -.->|traces + logs JSON| DD
+    OSNS & BNS & ENS -.->|"spans dd-trace"| OTEL
+    OTEL -.->|OTLP| JG
+    Traefik -.->|"OTLP (traceparent)"| JG

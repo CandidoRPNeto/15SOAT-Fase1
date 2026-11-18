@@ -30,15 +30,22 @@ data:
   L5_SWAGGER_GENERATE_ALWAYS: "false"
   L5_SWAGGER_CONST_HOST: "http://localhost:30080"
   CLIENT_JWT_ISSUER: "15SOAT-Fase1-lambda"
-  # Datadog APM — tracer embutido na imagem. Agent no host (gateway da rede
-  # docker `kind`); DD_TRACE_AGENT_URL é obrigatório (o sidecar ignora
-  # DD_AGENT_HOST). Ver memória/README de observabilidade.
+  # APM local (ADR-016): dd-trace embutido na imagem envia spans no protocolo
+  # Datadog para o OpenTelemetry Collector `trace-agent` (namespace platform),
+  # que repassa ao Jaeger. DD_TRACE_AGENT_URL é obrigatório (o sidecar ignora
+  # DD_AGENT_HOST).
   DD_SERVICE: "os-service"
   DD_ENV: "dev"
   DD_VERSION: "4.0.0"
   DD_TRACE_ENABLED: "true"
   DD_TRACE_CLI_ENABLED: "false"
   DD_LOGS_INJECTION: "true"
-  DD_AGENT_HOST: "172.22.0.1"
+  DD_AGENT_HOST: "trace-agent.platform.svc.cluster.local"
   DD_TRACE_AGENT_PORT: "8126"
-  DD_TRACE_AGENT_URL: "http://172.22.0.1:8126"
+  DD_TRACE_AGENT_URL: "http://trace-agent.platform.svc.cluster.local:8126"
+  # A integração AMQP do dd-trace rotula seus spans como "amqp", e o receptor
+  # datadog do Collector rotula o lote inteiro com o serviço do span raiz (no
+  # consumidor, amqp.basic.deliver): sem este mapeamento todo o trabalho do
+  # consumidor apareceria como "amqp". O broker segue visível nos spans
+  # amqp.basic.publish/deliver (tags messaging.rabbitmq.*).
+  DD_SERVICE_MAPPING: "amqp:os-service"

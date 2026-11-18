@@ -11,7 +11,7 @@ Entry point for any spec-driven action: starting or closing an epic, adding a ru
 - `rules.md` — decision log. A rule is added only when the dev corrects a proposed approach and explicitly asks to save it. Consult only when a question isn't answered by this file, the active `ep-*.md`, or `CLAUDE.md`. If `rules.md` doesn't answer it either, ask the dev — never guess.
 - `history.md` — summary of past phases. Read only when explicitly asked to retrieve something from the past.
 - `ep-<name>.md` — an active epic's task list + references to code and other `.md` files. One file per epic in flight.
-- `docs/architecture/{rfcs,adrs,diagrams}/` — decisions and diagrams. Fase 4 decisions: RFC-004, ADR-010..015.
+- `docs/architecture/{rfcs,adrs,diagrams}/` — decisions and diagrams. Fase 4 decisions: RFC-004, ADR-010..016.
 
 ## Fase 4 target (summary — details live in the ADRs)
 
@@ -31,7 +31,7 @@ Entry point for any spec-driven action: starting or closing an epic, adding a ru
 Order reflects dependencies. Branch per epic per repo: `feature/2026/11/<epic>`. Done: F4-01 spec/ADRs, F4-02 platform, F4-03 OS saga (BDD via `behat/gherkin` in PHPUnit — Behat 3 does not install on Symfony 8), F4-04 Billing, F4-05 Execution, F4-06 code (k8s + CI/CD; GitHub setup pending), F4-08 docs/diagrams. Verified end to end on kind: happy path + `stock`, `queue-full`, `worker-down` scenarios.
 
 1. [`ep-f4-06-k8s-cicd.md`](ep-f4-06-k8s-cicd.md) — GitHub-side setup pending: repos, PRs, branch protection, SonarCloud, runners, Mercado Pago token.
-2. [`ep-f4-07-observability.md`](ep-f4-07-observability.md) — dd-trace per service, saga logs, Datadog monitors, distributed trace check.
+2. [`ep-f4-07-observability.md`](ep-f4-07-observability.md) — dd-trace → OTel Collector → Jaeger (ADR-016), saga logs, distributed trace check.
 
 ## Epic lifecycle
 

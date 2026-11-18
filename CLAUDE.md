@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**Workshop OS — OS Service** — Laravel 13 (PHP ^8.3). Fase 4: este repo é o OS Service (auth, cadastros, catálogo/estoque, OS e **orquestrador da saga**). Orçamento/pagamento vivem em `15SOAT-Fase1-billing`; diagnóstico/reparo em `15SOAT-Fase1-execution`; plataforma (Traefik, RabbitMQ, scripts) em `15SOAT-Fase1-kubernetes`. Spec: `spec.md`. Decisões: RFC-004, ADR-010..015.
+**Workshop OS — OS Service** — Laravel 13 (PHP ^8.3). Fase 4: este repo é o OS Service (auth, cadastros, catálogo/estoque, OS e **orquestrador da saga**). Orçamento/pagamento vivem em `15SOAT-Fase1-billing`; diagnóstico/reparo em `15SOAT-Fase1-execution`; plataforma (Traefik, RabbitMQ, Jaeger, scripts) em `15SOAT-Fase1-kubernetes`. Spec: `spec.md`. Decisões: RFC-004, ADR-010..016.
 
 - **Database**: PostgreSQL (produção/Docker), SQLite `:memory:` (testes)
 - **Auth**: Laravel Sanctum (API tokens)

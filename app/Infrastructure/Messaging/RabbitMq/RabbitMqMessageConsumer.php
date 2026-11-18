@@ -4,7 +4,9 @@ namespace App\Infrastructure\Messaging\RabbitMq;
 
 use App\Application\Ports\MessageConsumer;
 use App\Application\Ports\MessageRouter;
+use App\Application\Ports\TraceContext;
 use App\Domain\Messaging\MessageEnvelope;
+use App\Infrastructure\Tracing\NullTraceContext;
 use Illuminate\Support\Facades\Log;
 use PhpAmqpLib\Channel\AMQPChannel;
 use PhpAmqpLib\Connection\AMQPStreamConnection;
@@ -30,6 +32,7 @@ class RabbitMqMessageConsumer implements MessageConsumer
     public function __construct(
         private readonly RabbitMqConnectionFactory $factory,
         private readonly MessageRouter $router,
+        private readonly TraceContext $trace = new NullTraceContext,
     ) {}
 
     public function poll(callable $handler, float $timeoutSeconds): int
@@ -49,7 +52,8 @@ class RabbitMqMessageConsumer implements MessageConsumer
     public function onMessage(AMQPMessage $message): void
     {
         try {
-            ($this->handler)(MessageEnvelope::fromJson($message->getBody()));
+            $envelope = MessageEnvelope::fromJson($message->getBody());
+            $this->trace->inServiceSpan('message.handle', $envelope->type, fn () => ($this->handler)($envelope));
             $message->ack();
             $this->handled++;
         } catch (Throwable $e) {
