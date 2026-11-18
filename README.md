@@ -349,41 +349,31 @@ Login como recepcionista + criação de OS em loop via [`hey`](https://github.co
 
 Em outro terminal, acompanhe o scaling: `kubectl get hpa workshop-os-app -w`.
 
-### `scripts/route-load-test.js` — carga distribuída pelas 39 rotas
+### `scripts/route-load-test.js` — carga pelos 3 microsserviços (Fase 4)
 
-Chama todas as rotas GET/POST/PUT/DELETE da API (autenticando nos 3 perfis) em
-três intensidades:
+Gera tráfego real via gateway para encher o Jaeger, o RabbitMQ e o HPA:
 
-| Tier      | GET (listagem / detalhe) | POST | PUT  | DELETE | Uso                                    |
-|-----------|---------------------------|------|------|--------|-----------------------------------------|
-| `light`   | 10x / 8x                  | 6x   | 4x   | 1x     | Smoke test — cobre cada rota poucas vezes |
-| `heavy`   | 1000x / 800x              | 600x | 400x | 50x    | Carga pesada — já satura o HPA no teto (testado: 2→6 réplicas em ~1 min) |
-| `extreme` | 10000x / 8000x            | 6000x| 4000x| 500x   | Estresse — mostra até onde o sistema aguenta (script para no orçamento de tempo, não precisa completar tudo) |
+1. CRUD no OS Service (clientes, veículos, serviços, peças).
+2. Sagas completas em paralelo: OS → diagnóstico (Execution) → orçamento (Billing) → reparo → pagamento → entrega. Cerca de 15% são rejeitadas pelo cliente e 15% compensam por falta de estoque.
+3. Leituras nos 3 serviços (listas, detalhes, histórico da saga).
+
+| Tier      | Sagas | CRUD | Leituras | Concorrência | Orçamento de tempo |
+|-----------|-------|------|----------|--------------|--------------------|
+| `light`   | 6     | 6x   | 10x      | 6            | 120 s              |
+| `heavy`   | 40    | 60x  | 100x     | 20           | 600 s              |
+| `extreme` | 150   | 300x | 500x     | 40           | 1200 s             |
 
 ```bash
-BASE_URL=http://127.0.0.1:30080 node scripts/route-load-test.js light    # ou heavy / extreme
-# concorrência e orçamento de tempo (segundos) são opcionais:
-BASE_URL=http://127.0.0.1:30080 node scripts/route-load-test.js heavy 30 90
-# 0 (ou "none"/"unlimited"/"infinite") destrava a válvula de segurança —
-# roda até completar todas as chamadas planejadas, sem corte por tempo:
-BASE_URL=http://127.0.0.1:30080 node scripts/route-load-test.js extreme 60 0
+node scripts/route-load-test.js light               # BASE_URL padrão: http://127.0.0.1:30080
+node scripts/route-load-test.js heavy 30 300        # concorrência e orçamento (s) opcionais
+node scripts/route-load-test.js extreme 40 0        # 0 = sem corte por tempo
 ```
 
-> Use `127.0.0.1`, não `localhost` — o Node resolve `localhost` para `::1`
-> (IPv6) primeiro, e o kind só expõe a porta em IPv4.
-
-Ao final, imprime um resumo por rota (tentativas, `2xx`/`4xx`/`5xx`, latência
-média). Duas notas sobre os resultados:
-
-- Fase 4: as rotas de transição de status (`generate-budget`, `approve`,
-  `cancel`, `start-execution`, `finalize`, `pay`) saíram do OS Service. Elas
-  migraram para Billing/Execution, e o status passou a mudar por eventos da saga.
-  Este script ainda as chama e recebe `404`; ele cobre a carga das
-  rotas do OS Service, mas não o fluxo da saga (para isso use
-  `15SOAT-Fase1-kubernetes/demo/e2e-saga.sh`).
-- Sob concorrência real, `ServiceOrder::generateNumber()` (conta registros do
-  ano para montar `OS-AAAA-NNNNN`) pode gerar colisão e retornar `500` — uma
-  race condition conhecida, exposta justamente pelo teste de carga.
+- Use `127.0.0.1`, não `localhost`: o Node resolve `localhost` para `::1` (IPv6) primeiro, e o kind só expõe IPv4.
+- As sagas usam peças criadas pelo próprio script. O estoque do seed (usado por `demo/e2e-saga.sh`) não é consumido.
+- O script só apaga o que ele mesmo criou.
+- Ao final, imprime o resultado das sagas e um resumo por rota (tentativas, `2xx`/`4xx`/`5xx`, latência média).
+- Problema conhecido: sob concorrência, `ServiceOrder::generateNumber()` (conta os registros do ano para montar `OS-AAAA-NNNNN`) pode colidir e retornar `500`. O script retenta a criação da OS.
 
 ---
 
