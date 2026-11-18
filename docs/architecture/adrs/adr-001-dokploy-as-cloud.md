@@ -35,3 +35,17 @@ nuvem**.
   [ADR-003](adr-003-keep-local-k8s-reference.md). Vale reconfirmar o
   roadmap do Dokploy (pode ter ganhado autoscaling/K8s desde que esta
   decisão foi registrada) antes de fechar o Epic 3.
+
+## Limitações frente ao enunciado
+
+O Dokploy numa VPS não equivale literalmente aos dois recursos pedidos:
+
+| Requisito | O que o Dokploy entrega | O que falta frente a um serviço gerenciado |
+|---|---|---|
+| Banco de dados gerenciado | Container PostgreSQL na mesma VPS, provisionado como recurso `Database` pelo Terraform | Alta disponibilidade e failover automáticos, backup/restore point-in-time gerenciado, patching do motor pelo provedor, escala vertical sem downtime, isolamento de hardware em relação à aplicação |
+| Cluster Kubernetes com escalabilidade | Docker Swarm/Compose de um único nó | API Kubernetes (manifests, HPA, probes, RBAC), autoscaling por métrica, múltiplos nós, rescheduling em caso de falha do nó |
+
+- Risco operacional: a VPS é ponto único de falha para banco, gateway e aplicação ao mesmo tempo.
+- Mitigação na Fase 3: os manifests Kubernetes da Fase 2 (`/k8s`, `/infra`) continuaram no repositório como implementação de referência testável no kind ([ADR-003](adr-003-keep-local-k8s-reference.md)).
+- Desdobramento na Fase 4: a execução passou a ser em Kubernetes real (cluster kind), com namespaces, HPA, probes e um banco próprio por serviço em StatefulSet ([RFC-004](../rfcs/rfc-004-microservices-split.md), [ADR-014](adr-014-self-hosted-runner-kind.md)). O kind é local e de nó único para a camada de controle, então ainda não é um cluster gerenciado em nuvem; essa é a limitação que permanece.
+

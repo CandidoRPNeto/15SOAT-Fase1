@@ -80,8 +80,10 @@ Também concentra a compensação e permite testar o fluxo inteiro com BDD.
   dd-trace da Fase 3 nas 3 imagens, agora enviando a um OpenTelemetry Collector
   que repassa ao Jaeger (o plano free do Datadog não tem APM). Um único trace
   cobre gateway → OS → outbox → RabbitMQ → Billing/Execution. O outbox guarda o
-  contexto do trace junto com a mensagem. Logs JSON com `correlation_id`/`saga_id`
-  e filas/DLQ na UI do RabbitMQ completam o monitoramento.
+  contexto do trace junto com a mensagem. As métricas de host, Kubernetes e
+  containers vão ao Datadog pelo Datadog Agent, que roda no cluster como DaemonSet
+  versionado no repo da plataforma. Logs JSON com `correlation_id`/`saga_id` e
+  filas/DLQ na UI do RabbitMQ completam o monitoramento.
 
 ## Testes e qualidade
 

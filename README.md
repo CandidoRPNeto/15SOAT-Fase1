@@ -23,7 +23,7 @@ entre os microsserviços (ver seção Fase 4).
 | Orquestração | Kubernetes local (`/k8s`, referência — [ADR-003](docs/architecture/adrs/adr-003-keep-local-k8s-reference.md)) + Dokploy (cloud, Fase 3 — [ADR-001](docs/architecture/adrs/adr-001-dokploy-as-cloud.md)) |
 | IaC          | Terraform (`/infra` local; `15SOAT-Fase1-*` cloud, Fase 3) |
 | CI/CD        | GitHub Actions (`.github/workflows/ci-cd.yml`) |
-| Observabilidade | dd-trace → OpenTelemetry Collector → Jaeger, trace distribuído por HTTP, outbox e RabbitMQ ([ADR-016](docs/architecture/adrs/adr-016-local-apm-jaeger.md)); logs JSON com `saga_id`/`correlation_id` |
+| Observabilidade | APM: biblioteca dd-trace na imagem → OpenTelemetry Collector → Jaeger, trace distribuído por HTTP, outbox e RabbitMQ. Métricas: Datadog Agent (DaemonSet) no cluster. Logs JSON com `correlation_id`/`saga_id` ([ADR-016](docs/architecture/adrs/adr-016-local-apm-jaeger.md)) |
 
 ---
 
