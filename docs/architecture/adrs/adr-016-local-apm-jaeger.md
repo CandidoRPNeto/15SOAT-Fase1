@@ -30,6 +30,7 @@
   - o Collector descarta os spans `laravel.event.handle`.
 - **Nomes**: `DD_SERVICE_MAPPING=amqp:<serviço>`. O receiver rotula o lote inteiro com o serviço do span raiz, que no consumidor é o `amqp.basic.deliver`.
 - **Logs**: o rastreamento por log continua com `saga_id`/`correlation_id` (`demo/trace-saga.sh` no repo kubernetes).
+- **Métricas no Datadog**: métricas de infraestrutura entram no plano free. O Datadog Agent roda no cluster como DaemonSet versionado (`15SOAT-Fase1-kubernetes/k8s/platform/datadog-agent.yaml`), com as checks de kubelet e containerd, e envia métricas de host, Kubernetes e containers. APM, logs e processos ficam desligados no agente.
 
 ## Consequências
 
